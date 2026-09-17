@@ -2,21 +2,44 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0b57d0"><title>Pass Once AI</title>
+<meta name="theme-color" content="#0b57d0"><meta name="description" content="Pass Once AI — Learn, Practice, Pass.">
+<title>Pass Once AI</title>
 <link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header><div class="brand"><span class="logo">P</span> Pass Once <b>AI</b></div><button id="logout" class="ghost hidden">Log out</button></header>
+<header><div class="brand"><span class="logo">P</span><span>Pass Once <b>AI</b></span></div><button id="logout" class="ghost hidden">Log out</button></header>
 <main>
 <section id="auth">
-<div class="hero"><span class="pill">Nigeria-first • Africa-ready</span><h1>Learn smart.<br><span>Practice more.</span><br>Pass Once.</h1><p>Exam preparation with practice, explanations and an AI learning companion.</p></div>
-<div class="card">
-<div class="tabs"><button id="loginTab" class="active">Log in</button><button id="signupTab">Create account</button></div>
-<label id="nameBox" class="hidden">Full name<input id="name"></label>
-<label>Email<input id="email" type="email" required></label>
-<label>Password<input id="password" type="password" minlength="6" required></label>
-<button id="authBtn" class="primary">Log in</button><p id="msg"></p>
-</div></section>
+  <div class="auth-wrap">
+    <div class="hero-card">
+      <div class="hero-copy">
+        <span class="pill">🇳🇬 Nigeria-first • Africa-ready</span>
+        <h1>Study Smarter.<br><span>Pass Faster.</span></h1>
+        <p class="hero-lead">Learn, practice and build confidence with curriculum-based lessons, CBT practice and your AI learning companion.</p>
+        <div class="hero-points">
+          <div><strong>🧠 AI Tutor</strong><small>Simple explanations</small></div>
+          <div><strong>📝 CBT Practice</strong><small>Real exam-style practice</small></div>
+          <div><strong>📈 Track Progress</strong><small>See your growth</small></div>
+        </div>
+      </div>
+      <div class="hero-art"><img src="assets/student-illustration.svg" alt="Students learning with books"></div>
+    </div>
+
+    <div class="auth-card card">
+      <div class="auth-brand"><span class="mini-logo">🎓</span><div><strong>Pass Once <em>AI</em></strong><small>Learn • Practice • Pass</small></div></div>
+      <h2 id="authTitle">Welcome Back!</h2>
+      <p id="authSubtitle" class="muted">Log in to continue your learning journey.</p>
+      <div class="tabs"><button id="loginTab" class="active">Log in</button><button id="signupTab">Create account</button></div>
+      <label id="nameBox" class="hidden">Full name<input id="name" autocomplete="name" placeholder="Your full name"></label>
+      <label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+      <label>Password<input id="password" type="password" autocomplete="new-password" minlength="6" placeholder="At least 6 characters" required></label>
+      <button id="authBtn" class="primary">Log in <span>→</span></button>
+      <p id="msg" class="auth-msg"></p>
+      <div class="trust-row"><span>🔒 Secure sign-in</span><span>📱 Mobile friendly</span></div>
+    </div>
+  </div>
+  <div class="language-banner"><strong>Same Goal — Different Languages — One Pass.</strong><span>English • Yorùbá • Igbo • Hausa</span></div>
+</section>
 
 <section id="setup" class="hidden">
 <div class="section"><span class="pill">Student profile</span><h2>Tell us about your learning</h2></div>
@@ -36,8 +59,8 @@
 
 <section id="quiz" class="hidden"><button class="back" id="back">← Dashboard</button><div class="quizhead"><b id="subject"></b><span id="count"></span></div><div class="bar"><i id="bar"></i></div><div class="card"><h2 id="question"></h2><div id="options"></div><p id="explain" class="explain hidden"></p><button id="next" class="primary hidden">Next</button></div></section>
 
-<section id="tutorView" class="hidden"><button class="back" id="backTutor">← Dashboard</button><div class="section"><span class="pill">AI Tutor</span><h2>Ask a question</h2></div><div class="card"><div id="chat" class="chat"></div><form id="chatForm"><input id="ask" placeholder="e.g. Explain quadratic equations simply" required><button class="primary">Ask</button></form></div></section>
-</main><footer>Pass Once AI • Phase 4 — Real Practice</footer>
+<section id="tutorView" class="hidden"><button class="back" id="backTutor">← Dashboard</button><div class="section"><span class="pill">AI Tutor</span><h2>Ask a question</h2></div><div class="card"><div id="chat" class="chat"></div><form id="chatForm"><input id="ask" placeholder="e.g. Explain fractions simply" required><button class="primary">Ask</button></form></div></section>
+</main><footer>Pass Once AI • Learn • Practice • Pass</footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script><script src="app.js"></script>
 </body></html>
