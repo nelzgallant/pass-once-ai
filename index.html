@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b57d0"><title>Pass Once AI</title>
+<link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header><div class="brand"><span class="logo">P</span> Pass Once <b>AI</b></div><button id="logout" class="ghost hidden">Log out</button></header>
+<main>
+<section id="auth">
+<div class="hero"><span class="pill">Nigeria-first • Africa-ready</span><h1>Learn smart.<br><span>Practice more.</span><br>Pass Once.</h1><p>Exam preparation with practice, explanations and an AI learning companion.</p></div>
+<div class="card">
+<div class="tabs"><button id="loginTab" class="active">Log in</button><button id="signupTab">Create account</button></div>
+<label id="nameBox" class="hidden">Full name<input id="name"></label>
+<label>Email<input id="email" type="email" required></label>
+<label>Password<input id="password" type="password" minlength="6" required></label>
+<button id="authBtn" class="primary">Log in</button><p id="msg"></p>
+</div></section>
+
+<section id="setup" class="hidden">
+<div class="section"><span class="pill">Student profile</span><h2>Tell us about your learning</h2></div>
+<div class="card">
+<label>Country<select id="country"><option>Nigeria</option><option>Ghana</option><option>Sierra Leone</option><option>The Gambia</option><option>Liberia</option></select></label>
+<label>Level<select id="level"><option>JSS 1</option><option>JSS 2</option><option>JSS 3</option><option>SS 1</option><option>SS 2</option><option>SS 3</option></select></label>
+<label>Learning language<select id="language"><option>English</option><option>Yorùbá</option><option>Igbo</option><option>Hausa</option><option>Nigerian Pidgin</option></select></label>
+<button id="saveProfile" class="primary">Continue</button>
+</div></section>
+
+<section id="dash" class="hidden">
+<div class="section"><span class="pill">Dashboard</span><h2 id="welcome"></h2><p id="profile"></p></div>
+<div class="stats"><div><b id="attempts">0</b><small>Questions</small></div><div><b id="correct">0</b><small>Correct</small></div><div><b id="accuracy">0%</b><small>Accuracy</small></div></div>
+<h3>Subjects</h3><div id="subjects" class="grid"></div>
+<div class="grid features"><button class="card feature" id="tutor">🤖 <b>AI Tutor</b></button><button class="card feature" id="progress">📈 <b>My Progress</b></button></div>
+</section>
+
+<section id="quiz" class="hidden"><button class="back" id="back">← Dashboard</button><div class="quizhead"><b id="subject"></b><span id="count"></span></div><div class="bar"><i id="bar"></i></div><div class="card"><h2 id="question"></h2><div id="options"></div><p id="explain" class="explain hidden"></p><button id="next" class="primary hidden">Next</button></div></section>
+
+<section id="tutorView" class="hidden"><button class="back" id="backTutor">← Dashboard</button><div class="section"><span class="pill">AI Tutor</span><h2>Ask a question</h2></div><div class="card"><div id="chat" class="chat"></div><form id="chatForm"><input id="ask" placeholder="e.g. Explain quadratic equations simply" required><button class="primary">Ask</button></form></div></section>
+</main><footer>Pass Once AI • Phase 4 — Real Practice</footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script><script src="app.js"></script>
+</body></html>
