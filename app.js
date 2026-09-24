@@ -360,6 +360,52 @@ async function renderParentDash(){
     ||
     `<div class="card">No linked children found.</div>`;
 }
+$("connectChild").onclick = async () => {
+
+  const code =
+    $("childCode").value.trim().toUpperCase();
+
+  if(!code){
+    parentMessage("Please enter the parent code.");
+    return;
+  }
+
+  try{
+
+    $("connectChild").disabled = true;
+
+    const {data,error} =
+      await sb.rpc(
+        "redeem_parent_link_code",
+        {p_code:code}
+      );
+
+    if(error) throw error;
+
+    parentMessage(
+      data || "Child connected successfully."
+    );
+
+    $("childCode").value = "";
+
+    await renderParentDash();
+
+  }catch(e){
+
+    parentMessage(
+      e.message ||
+      "Could not connect this child."
+    );
+
+  }finally{
+
+    $("connectChild").disabled = false;
+
+  }
+};
+
+$("generateParentCode").onclick =
+  generateParentCode;
 
 async function start(subjectId,subjectName){if(!classRow)return;currentSubject={id:subjectId,name:subjectName};currentQuestions=[];currentIndex=0;currentScore=0;show("quiz");$("question").textContent="Loading questions…";$("options").innerHTML="";$("explain").classList.add("hidden");$("next").classList.add("hidden");try{const ids=await topicIds(subjectId,classRow.id);if(!ids.length){$("question").textContent=`No topics are loaded for ${subjectName} yet.`;return;}const {data,error}=await sb.from("questions").select("id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type").eq("language_code","en").in("topic_id",ids);if(error)throw error;currentQuestions=data||[];if(!currentQuestions.length){$("question").textContent=`No practice questions are loaded for ${subjectName} yet.`;$("options").innerHTML=`<p>Add questions in Supabase and they will appear here automatically.</p>`;return;}renderQ();}catch(e){$("question").textContent="Could not load questions.";$("explain").textContent=e.message;$("explain").classList.remove("hidden");}}
 async function topicIds(subjectId,classId){const {data,error}=await sb.from("topics").select("id").eq("subject_id",subjectId).eq("class_id",classId).order("id");if(error)throw error;return(data||[]).map(x=>x.id);}
