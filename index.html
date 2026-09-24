@@ -62,7 +62,40 @@
 <h3>Subjects</h3><div id="subjects" class="grid"></div>
 <div class="grid features"><button class="card feature" id="tutor">🤖 <b>AI Tutor</b></button><button class="card feature" id="progress">📈 <b>My Progress</b></button></div>
 </section>
+<section id="parentDash" class="hidden">
 
+  <div class="section">
+    <span class="pill">Parent Portal</span>
+    <h2 id="parentWelcome"></h2>
+    <p class="muted">
+      Follow your child's learning journey, practice and progress.
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>🔗 Connect a child</h3>
+    <p class="muted">
+      Ask your child to generate a Parent Code from their Student Dashboard.
+    </p>
+
+    <input
+      id="childCode"
+      maxlength="8"
+      placeholder="Enter 8-character code"
+    >
+
+    <button id="connectChild" class="primary">
+      Connect Child
+    </button>
+
+    <p id="parentMsg" class="auth-msg"></p>
+  </div>
+
+  <h3>My Children</h3>
+
+  <div id="children" class="grid"></div>
+
+</section>
 <section id="quiz" class="hidden"><button class="back" id="back">← Dashboard</button><div class="quizhead"><b id="subject"></b><span id="count"></span></div><div class="bar"><i id="bar"></i></div><div class="card"><h2 id="question"></h2><div id="options"></div><p id="explain" class="explain hidden"></p><button id="next" class="primary hidden">Next</button></div></section>
 
 <section id="tutorView" class="hidden"><button class="back" id="backTutor">← Dashboard</button><div class="section"><span class="pill">AI Tutor</span><h2>Ask a question</h2></div><div class="card"><div id="chat" class="chat"></div><form id="chatForm"><input id="ask" placeholder="e.g. Explain fractions simply" required><button class="primary">Ask</button></form></div></section>
