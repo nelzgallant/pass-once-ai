@@ -30,6 +30,12 @@
       <h2 id="authTitle">Welcome Back!</h2>
       <p id="authSubtitle" class="muted">Log in to continue your learning journey.</p>
       <div class="tabs"><button id="loginTab" class="active">Log in</button><button id="signupTab">Create account</button></div>
+      <label id="accountTypeBox" class="hidden">Account type
+  <select id="accountType">
+    <option value="student">🎓 Student</option>
+    <option value="parent">👨‍👩‍👧 Parent</option>
+  </select>
+</label>
       <label id="nameBox" class="hidden">Full name<input id="name" autocomplete="name" placeholder="Your full name"></label>
       <label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com" required></label>
       <label>Password<input id="password" type="password" autocomplete="new-password" minlength="6" placeholder="At least 6 characters" required></label>
