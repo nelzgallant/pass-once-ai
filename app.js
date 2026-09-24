@@ -4,7 +4,12 @@ const $ = id => document.getElementById(id);
 let signup = false, user = null, profile = null, classRow = null;
 let currentSubject = null, currentQuestions = [], currentIndex = 0, currentScore = 0, answered = false;
 
-function show(id){["auth","setup","dash","quiz","tutorView"].forEach(x=>$(x).classList.add("hidden"));$(id).classList.remove("hidden");}
+function show(id){
+  ["auth","setup","dash","parentDash","quiz","tutorView"]
+    .forEach(x => $(x).classList.add("hidden"));
+
+  $(id).classList.remove("hidden");
+}
 function message(text=""){ $("msg").textContent=text; }
 function escapeHtml(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
 function normalizeLevel(level){return String(level||"JSS 1").replace(/\s+/g,"").toUpperCase();}
