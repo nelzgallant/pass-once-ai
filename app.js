@@ -186,6 +186,180 @@ async function generateParentCode(){
 
   }
 }
+async function renderParentDash(){
+
+  show("parentDash");
+
+  $("parentWelcome").textContent =
+    `Welcome, ${profile.full_name} 👋🏾`;
+
+  parentMessage("");
+
+  const {data:links,error} =
+    await sb
+      .from("parent_child_links")
+      .select("child_id,created_at")
+      .eq("parent_id",user.id)
+      .eq("status","active");
+
+  if(error) throw error;
+
+  const childIds =
+    (links || []).map(x => x.child_id);
+
+  if(!childIds.length){
+
+    $("children").innerHTML = `
+      <div class="card">
+        <h3>No child connected yet</h3>
+
+        <p class="muted">
+          Generate a code from your child's
+          Student Dashboard, then enter it above.
+        </p>
+      </div>
+    `;
+
+    return;
+  }
+
+  const {data:children,error:childError} =
+    await sb
+      .from("profiles")
+      .select(
+        "id,full_name,country,level,language"
+      )
+      .in("id",childIds);
+
+  if(childError) throw childError;
+
+  const cards = [];
+
+  for(const child of (children || [])){
+
+    const {data:attempts,error:attemptError} =
+      await sb
+        .from("quiz_attempts")
+        .select(
+          "score,total,subject,created_at"
+        )
+        .eq("user_id",child.id);
+
+    if(attemptError) throw attemptError;
+
+    const a = attempts || [];
+
+    const totalQuestions =
+      a.reduce(
+        (n,x) => n + Number(x.total || 0),
+        0
+      );
+
+    const correct =
+      a.reduce(
+        (n,x) => n + Number(x.score || 0),
+        0
+      );
+
+    const accuracy =
+      totalQuestions
+        ? Math.round(correct / totalQuestions * 100)
+        : 0;
+
+    const {
+      data:progress,
+      error:progressError
+    } =
+      await sb
+        .from("student_progress")
+        .select("completed")
+        .eq("student_id",child.id)
+        .eq("completed",true);
+
+    if(progressError) throw progressError;
+
+    const bySubject = {};
+
+    for(const item of a){
+
+      const subject =
+        item.subject || "Other";
+
+      if(!bySubject[subject]){
+        bySubject[subject] = {
+          score:0,
+          total:0
+        };
+      }
+
+      bySubject[subject].score +=
+        Number(item.score || 0);
+
+      bySubject[subject].total +=
+        Number(item.total || 0);
+    }
+
+    const subjectLines =
+      Object.entries(bySubject)
+      .map(([name,v]) =>
+        `${escapeHtml(name)}: ${
+          v.total
+            ? Math.round(v.score / v.total * 100)
+            : 0
+        }%`
+      )
+      .join(" • ")
+      || "No practice yet";
+
+    cards.push(`
+      <div class="card">
+
+        <h3>🎓 ${escapeHtml(child.full_name)}</h3>
+
+        <p class="muted">
+          ${escapeHtml(child.level || "Student")}
+          •
+          ${escapeHtml(child.language || "English")}
+        </p>
+
+        <div class="stats">
+
+          <div>
+            <b>${totalQuestions}</b>
+            <small>Questions</small>
+          </div>
+
+          <div>
+            <b>${correct}</b>
+            <small>Correct</small>
+          </div>
+
+          <div>
+            <b>${accuracy}%</b>
+            <small>Accuracy</small>
+          </div>
+
+        </div>
+
+        <p>
+          <strong>Lessons completed:</strong>
+          ${progress?.length || 0}
+        </p>
+
+        <p>
+          <strong>Practice by subject:</strong>
+          ${subjectLines}
+        </p>
+
+      </div>
+    `);
+  }
+
+  $("children").innerHTML =
+    cards.join("")
+    ||
+    `<div class="card">No linked children found.</div>`;
+}
 
 async function start(subjectId,subjectName){if(!classRow)return;currentSubject={id:subjectId,name:subjectName};currentQuestions=[];currentIndex=0;currentScore=0;show("quiz");$("question").textContent="Loading questions…";$("options").innerHTML="";$("explain").classList.add("hidden");$("next").classList.add("hidden");try{const ids=await topicIds(subjectId,classRow.id);if(!ids.length){$("question").textContent=`No topics are loaded for ${subjectName} yet.`;return;}const {data,error}=await sb.from("questions").select("id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type").eq("language_code","en").in("topic_id",ids);if(error)throw error;currentQuestions=data||[];if(!currentQuestions.length){$("question").textContent=`No practice questions are loaded for ${subjectName} yet.`;$("options").innerHTML=`<p>Add questions in Supabase and they will appear here automatically.</p>`;return;}renderQ();}catch(e){$("question").textContent="Could not load questions.";$("explain").textContent=e.message;$("explain").classList.remove("hidden");}}
 async function topicIds(subjectId,classId){const {data,error}=await sb.from("topics").select("id").eq("subject_id",subjectId).eq("class_id",classId).order("id");if(error)throw error;return(data||[]).map(x=>x.id);}
