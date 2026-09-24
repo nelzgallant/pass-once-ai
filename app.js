@@ -76,14 +76,58 @@ $("authBtn").onclick=async()=>{
 };
 
 async function load(){
- try{
-  user=await getCurrentUser();
-  if(!user){$("logout").classList.add("hidden");show("auth");return;}
-  $("logout").classList.remove("hidden");
-  const {data:p,error}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
-  if(error)throw error;
-  if(!p)show("setup"); else{profile=p;await renderDash();}
- }catch(e){message(e.message||"Could not load your account.");}
+
+  try{
+
+    user = await getCurrentUser();
+
+    if(!user){
+      $("logout").classList.add("hidden");
+      show("auth");
+      return;
+    }
+
+    $("logout").classList.remove("hidden");
+
+    const {data:p,error} =
+      await sb
+        .from("profiles")
+        .select("*")
+        .eq("id",user.id)
+        .maybeSingle();
+
+    if(error) throw error;
+
+    if(!p){
+
+      const requestedRole =
+        user.user_metadata?.account_type === "parent"
+          ? "parent"
+          : "student";
+
+      prepareSetup(requestedRole);
+
+      show("setup");
+
+      return;
+    }
+
+    profile = p;
+
+    if(profile.role === "parent"){
+      await renderParentDash();
+    }else{
+      await renderDash();
+    }
+
+  }catch(e){
+
+    message(
+      e.message ||
+      "Could not load your account."
+    );
+
+  }
 }
 
 $("saveProfile").onclick=async()=>{try{user=await getCurrentUser();if(!user)return show("auth");const p={id:user.id,full_name:$("name").value.trim()||user.user_metadata?.full_name||user.email.split("@")[0],country:$("country").value,level:$("level").value,language:$("language").value};const {error}=await sb.from("profiles").upsert(p);if(error)throw error;profile=p;await renderDash();}catch(e){message(e.message||"Could not save profile.");}};
