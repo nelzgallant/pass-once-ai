@@ -17,13 +17,35 @@ function redirectUrl(){return window.location.origin + window.location.pathname;
 async function getCurrentUser(){const {data,error}=await sb.auth.getUser();if(error) throw error;return data.user;}
 
 function setAuthMode(isSignup){
- signup=isSignup;
- $("loginTab").classList.toggle("active",!signup); $("signupTab").classList.toggle("active",signup);
- $("nameBox").classList.toggle("hidden",!signup);
- $("authBtn").innerHTML=signup?'Create account <span>→</span>':'Log in <span>→</span>';
- $("authTitle").textContent=signup?'Create your Pass Once AI account':'Welcome Back!';
- $("authSubtitle").textContent=signup?'Start your learning journey today.':'Log in to continue your learning journey.';
- $("password").setAttribute('autocomplete',signup?'new-password':'current-password'); message();
+  signup = isSignup;
+
+  $("loginTab").classList.toggle("active", !signup);
+  $("signupTab").classList.toggle("active", signup);
+
+  $("nameBox").classList.toggle("hidden", !signup);
+  $("accountTypeBox").classList.toggle("hidden", !signup);
+
+  $("authBtn").innerHTML =
+    signup
+      ? 'Create account <span>→</span>'
+      : 'Log in <span>→</span>';
+
+  $("authTitle").textContent =
+    signup
+      ? 'Create your Pass Once AI account'
+      : 'Welcome Back!';
+
+  $("authSubtitle").textContent =
+    signup
+      ? 'Start your learning journey today.'
+      : 'Log in to continue your learning journey.';
+
+  $("password").setAttribute(
+    "autocomplete",
+    signup ? "new-password" : "current-password"
+  );
+
+  message();
 }
 $("loginTab").onclick=()=>setAuthMode(false);
 $("signupTab").onclick=()=>setAuthMode(true);
