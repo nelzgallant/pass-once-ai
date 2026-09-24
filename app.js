@@ -56,7 +56,17 @@ $("authBtn").onclick=async()=>{
  try{
   $("authBtn").disabled=true;
   const result=signup
-   ? await sb.auth.signUp({email,password,options:{data:{full_name:$("name").value.trim()},emailRedirectTo:redirectUrl()}})
+   await sb.auth.signUp({
+  email,
+  password,
+  options:{
+    data:{
+      full_name:$("name").value.trim(),
+      account_type:$("accountType").value
+    },
+    emailRedirectTo:redirectUrl()
+  }
+})
    : await sb.auth.signInWithPassword({email,password});
   if(result.error)throw result.error;
   if(signup&&!result.data.session){message("Account created! Check your email, then tap the verification link to return to Pass Once AI.");return;}
