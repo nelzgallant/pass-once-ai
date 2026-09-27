@@ -10,6 +10,7 @@ function show(id){
 }
 function message(text=""){ $("msg").textContent=text; }
 function parentMessage(text=""){ $("parentMsg").textContent=text; }
+function setupMessage(text=""){ $("setupMsg").textContent=text; }
 function escapeHtml(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
 function normalizeLevel(level){return String(level||"JSS 1").replace(/\s+/g,"").toUpperCase();}
 function redirectUrl(){return window.location.origin + window.location.pathname;}
@@ -59,7 +60,11 @@ async function load(){
     }
     profile=p;
     if(profile.role==="parent") await renderParentDash(); else await renderDash();
-  }catch(e){message(e.message||"Could not load your account.");}
+  }catch(e){
+    const msg=e.message||"Could not load your account.";
+    if($("setupMsg") && !$("setup").classList.contains("hidden")) setupMessage("❌ "+msg);
+    else message(msg);
+  }
 }
 
 function prepareSetup(role){
@@ -80,11 +85,14 @@ $("saveProfile").onclick=async()=>{
       p.level=$("level").value;
       p.language=$("language").value;
     }
-    const {error}=await sb.from("profiles").upsert(p);
+    setupMessage("");
+    const {data:savedProfile,error}=await sb.from("profiles").insert(p).select("*").single();
     if(error)throw error;
-    profile=p;
+    profile=savedProfile||p;
     if(role==="parent")await renderParentDash();else await renderDash();
-  }catch(e){message(e.message||"Could not save profile.");}
+  }catch(e){
+    setupMessage("❌ "+(e.message||"Could not save profile."));
+  }
 };
 
 async function findClass(){const wanted=normalizeLevel(profile?.level);const {data,error}=await sb.from("classes").select("id,name");if(error)throw error;return(data||[]).find(c=>normalizeLevel(c.name)===wanted)||null;}
