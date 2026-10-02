@@ -5,7 +5,7 @@ let signup = false, user = null, profile = null, classRow = null;
 let currentSubject = null, currentQuestions = [], currentIndex = 0, currentScore = 0, answered = false;
 
 function show(id){
-  ["auth","setup","dash","parentDash","quiz","tutorView"].forEach(x => $(x).classList.add("hidden"));
+  ["auth","setup","subjectSelect","dash","parentDash","quiz","tutorView"].forEach(x => $(x).classList.add("hidden"));
   $(id).classList.remove("hidden");
 }
 function message(text=""){ $("msg").textContent=text; }
@@ -97,8 +97,7 @@ $("saveProfile").onclick=async()=>{
 
 async function findClass(){const wanted=normalizeLevel(profile?.level);const {data,error}=await sb.from("classes").select("id,name");if(error)throw error;return(data||[]).find(c=>normalizeLevel(c.name)===wanted)||null;}
 
-async function renderDash(){
-  show("dash");
+async function renderDash(openPractice=true){
   $("welcome").textContent=`Welcome, ${profile.full_name} 👋🏾`;
   $("profile").textContent=`${profile.country} • ${profile.level} • ${profile.language}`;
   classRow=await findClass();
@@ -106,13 +105,16 @@ async function renderDash(){
   if(attemptsError)throw attemptsError;
   const a=attempts||[],attempted=a.reduce((n,x)=>n+Number(x.total||0),0),correct=a.reduce((n,x)=>n+Number(x.score||0),0);
   $("attempts").textContent=attempted;$("correct").textContent=correct;$("accuracy").textContent=(attempted?Math.round(correct/attempted*100):0)+"%";
-  if(!classRow){$("subjects").innerHTML=`<div class="card">Choose JSS1 for the current practice demo.</div>`;return;}
+  if(!classRow){const noSubjects=`<div class="card">Choose JSS1 for the current practice demo.</div>`;$("subjects").innerHTML=noSubjects;$("practiceSubjects").innerHTML=noSubjects;show("subjectSelect");return;}
   const {data:subjects,error}=await sb.from("curriculum_subjects").select("subject_id, subjects(id,name)").eq("class_id",classRow.id);
   if(error)throw error;
   const unique=[];for(const row of(subjects||[])){const s=row.subjects;if(s&&!unique.some(x=>x.id===s.id))unique.push(s);}
   if(!unique.length){const fallback=await sb.from("subjects").select("id,name").order("id");if(fallback.error)throw fallback.error;unique.push(...(fallback.data||[]));}
-  $("subjects").innerHTML=unique.map(s=>`<button class="card subject" data-id="${s.id}" data-name="${escapeHtml(s.name)}">📚 ${escapeHtml(s.name)}</button>`).join("")||`<div class="card">No subjects found yet.</div>`;
+  const subjectHtml=unique.map(s=>`<button class="card subject" data-id="${s.id}" data-name="${escapeHtml(s.name)}" type="button">📚 ${escapeHtml(s.name)}</button>`).join("")||`<div class="card">No subjects found yet.</div>`;
+  $("subjects").innerHTML=subjectHtml;
+  $("practiceSubjects").innerHTML=subjectHtml;
   document.querySelectorAll(".subject").forEach(btn=>btn.onclick=()=>start(Number(btn.dataset.id),btn.dataset.name));
+  if(openPractice) show("subjectSelect"); else show("dash");
 }
 
 async function generateParentCode(){
@@ -204,7 +206,8 @@ async function topicIds(subjectId,classId){const {data,error}=await sb.from("top
 function renderQ(){const q=currentQuestions[currentIndex],opts=[q.option_a,q.option_b,q.option_c,q.option_d];$("subject").textContent=currentSubject.name;$("count").textContent=`${currentIndex+1}/${currentQuestions.length}`;$("bar").style.width=((currentIndex+1)/currentQuestions.length*100)+"%";$("question").textContent=q.question;$("options").innerHTML=opts.map((x,n)=>`<button class="option" data-i="${n}">${String.fromCharCode(65+n)}. ${escapeHtml(x)}</button>`).join("");$("explain").classList.add("hidden");$("next").classList.add("hidden");answered=false;document.querySelectorAll(".option").forEach(b=>b.onclick=()=>answer(Number(b.dataset.i)));}
 function correctIndex(q){const v=String(q.correct_answer||"").trim().toUpperCase();if(["A","B","C","D"].includes(v))return v.charCodeAt(0)-65;if(["1","2","3","4"].includes(v))return Number(v)-1;return-1;}
 function answer(n){if(answered)return;answered=true;const q=currentQuestions[currentIndex],right=correctIndex(q),buttons=document.querySelectorAll(".option");buttons.forEach(b=>b.disabled=true);if(right>=0)buttons[right].classList.add("correct");if(n===right)currentScore++;else if(n>=0)buttons[n].classList.add("wrong");$("explain").textContent=(n===right?"✅ Correct! ":"❌ Not quite.")+(q.explanation||"Review the lesson and try again.");$("explain").classList.remove("hidden");$("next").textContent=currentIndex<currentQuestions.length-1?"Next Question":"Finish Practice";$("next").classList.remove("hidden");$("next").onclick=nextQuestion;}
-async function nextQuestion(){if(currentIndex<currentQuestions.length-1){currentIndex++;renderQ();return;}try{const {error}=await sb.from("quiz_attempts").insert({user_id:user.id,subject:currentSubject.name,score:currentScore,total:currentQuestions.length});if(error)throw error;$("question").textContent="Practice complete! 🎉";$("options").innerHTML=`<div class="result card"><h2>${currentScore}/${currentQuestions.length}</h2><p>Your result has been saved to your Pass Once AI progress.</p><button class="primary" id="resultDash">Back to Dashboard</button></div>`;$("explain").classList.add("hidden");$("next").classList.add("hidden");$("resultDash").onclick=renderDash;}catch(e){$("explain").textContent=`Your score is ${currentScore}/${currentQuestions.length}, but it could not be saved: ${e.message}`;$("explain").classList.remove("hidden");}}
+async function nextQuestion(){if(currentIndex<currentQuestions.length-1){currentIndex++;renderQ();return;}try{const {error}=await sb.from("quiz_attempts").insert({user_id:user.id,subject:currentSubject.name,score:currentScore,total:currentQuestions.length});if(error)throw error;$("question").textContent="Practice complete! 🎉";$("options").innerHTML=`<div class="result card"><h2>${currentScore}/${currentQuestions.length}</h2><p>Your result has been saved to your Pass Once AI progress.</p><button class="primary" id="resultDash">Back to Dashboard</button></div>`;$("explain").classList.add("hidden");$("next").classList.add("hidden");$("resultDash").onclick=()=>renderDash(false);}catch(e){$("explain").textContent=`Your score is ${currentScore}/${currentQuestions.length}, but it could not be saved: ${e.message}`;$("explain").classList.remove("hidden");}}
+$("goDashboard").onclick=()=>renderDash(false);
 $("back").onclick=load;
 $("logout").onclick=async()=>{await sb.auth.signOut();user=null;profile=null;classRow=null;$("logout").classList.add("hidden");show("auth");setAuthMode(false);};
 $("tutor").onclick=()=>{show("tutorView");$("chat").innerHTML='<div class="bubble">Hi! I am your Pass Once AI Tutor. Ask me a school question.</div>';};
