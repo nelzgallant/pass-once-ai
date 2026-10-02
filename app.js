@@ -129,22 +129,58 @@ async function renderParentDash(){
   show("parentDash");
   $("parentWelcome").textContent=`Welcome, ${profile.full_name} 👋🏾`;
   parentMessage("");
+  $("parentDetails").classList.add("hidden");
   const {data:links,error}=await sb.from("parent_child_links").select("child_id,created_at").eq("parent_id",user.id).eq("status","active");
   if(error)throw error;
   const childIds=(links||[]).map(x=>x.child_id);
-  if(!childIds.length){$("children").innerHTML=`<div class="card"><h3>No child connected yet</h3><p class="muted">Generate a code from your child's Student Dashboard, then enter it above.</p></div>`;return;}
+  if(!childIds.length){
+    $("children").innerHTML=`<div class="card"><h3>No child connected yet</h3><p class="muted">Generate a code from your child's Student Dashboard, then enter it above.</p></div>`;
+    return;
+  }
   const {data:children,error:childError}=await sb.from("profiles").select("id,full_name,country,level,language").in("id",childIds);
   if(childError)throw childError;
+
   const cards=[];
   for(const child of(children||[])){
-    const {data:attempts,error:attemptError}=await sb.from("quiz_attempts").select("score,total,subject,created_at").eq("user_id",child.id);if(attemptError)throw attemptError;
-    const a=attempts||[],totalQuestions=a.reduce((n,x)=>n+Number(x.total||0),0),correct=a.reduce((n,x)=>n+Number(x.score||0),0),accuracy=totalQuestions?Math.round(correct/totalQuestions*100):0;
-    const {data:progress,error:progressError}=await sb.from("student_progress").select("completed").eq("student_id",child.id).eq("completed",true);if(progressError)throw progressError;
-    const bySubject={};for(const item of a){const subject=item.subject||"Other";if(!bySubject[subject])bySubject[subject]={score:0,total:0};bySubject[subject].score+=Number(item.score||0);bySubject[subject].total+=Number(item.total||0);}
-    const subjectLines=Object.entries(bySubject).map(([name,v])=>`${escapeHtml(name)}: ${v.total?Math.round(v.score/v.total*100):0}%`).join(" • ")||"No practice yet";
-    cards.push(`<div class="card"><h3>🎓 ${escapeHtml(child.full_name)}</h3><p class="muted">${escapeHtml(child.level||"Student")} • ${escapeHtml(child.language||"English")}</p><div class="stats"><div><b>${totalQuestions}</b><small>Questions</small></div><div><b>${correct}</b><small>Correct</small></div><div><b>${accuracy}%</b><small>Accuracy</small></div></div><p><strong>Lessons completed:</strong> ${progress?.length||0}</p><p><strong>Practice by subject:</strong> ${subjectLines}</p></div>`);
+    const {data:attempts,error:attemptError}=await sb.from("quiz_attempts").select("score,total,subject,created_at").eq("user_id",child.id).order("created_at",{ascending:false});
+    if(attemptError)throw attemptError;
+    const a=attempts||[];
+    const totalQuestions=a.reduce((n,x)=>n+Number(x.total||0),0);
+    const correct=a.reduce((n,x)=>n+Number(x.score||0),0);
+    const accuracy=totalQuestions?Math.round(correct/totalQuestions*100):0;
+    const {data:progress,error:progressError}=await sb.from("student_progress").select("completed").eq("student_id",child.id).eq("completed",true);
+    if(progressError)throw progressError;
+
+    const bySubject={};
+    for(const item of a){
+      const subject=item.subject||"Other";
+      if(!bySubject[subject])bySubject[subject]={score:0,total:0,attempts:0,last:item.created_at};
+      bySubject[subject].score+=Number(item.score||0);
+      bySubject[subject].total+=Number(item.total||0);
+      bySubject[subject].attempts++;
+      if(new Date(item.created_at)>new Date(bySubject[subject].last||0))bySubject[subject].last=item.created_at;
+    }
+    const subjectRows=Object.entries(bySubject).map(([name,v])=>{
+      const pct=v.total?Math.round(v.score/v.total*100):0;
+      const attention=pct<70;
+      return `<div class="card" style="padding:14px"><strong>${escapeHtml(name)}</strong><div style="display:flex;justify-content:space-between;margin:8px 0 6px"><span class="muted">${v.attempts} practice${v.attempts===1?"":"s"}</span><b>${pct}%</b></div><div style="height:8px;background:#e8eef7;border-radius:99px;overflow:hidden"><i style="display:block;width:${Math.min(pct,100)}%;height:100%;background:${attention?'#f4b400':'#2e7d32'}"></i></div></div>`;
+    }).join("");
+
+    const weak=Object.entries(bySubject).filter(([,v])=>v.total && Math.round(v.score/v.total*100)<70).map(([name,v])=>`${escapeHtml(name)} (${Math.round(v.score/v.total*100)}%)`);
+    const recent=a.slice(0,5).map(x=>`<li><strong>${escapeHtml(x.subject||"Practice")}</strong> — ${Number(x.score||0)}/${Number(x.total||0)} <span class="muted">${formatDate(x.created_at)}</span></li>`).join("");
+    const recentBlock=recent?`<ul style="padding-left:20px;line-height:1.9">${recent}</ul>`:`<p class="muted">No practice attempts yet.</p>`;
+    const weakBlock=weak.length?`<p>🔍 <strong>Needs more practice:</strong> ${weak.join(" • ")}</p>`:`<p>🌟 <strong>Needs more practice:</strong> No subject is currently below 70% based on recorded practice.</p>`;
+
+    cards.push(`<div class="card"><h3>🎓 ${escapeHtml(child.full_name)}</h3><p class="muted">${escapeHtml(child.level||"Student")} • ${escapeHtml(child.language||"English")} • ${escapeHtml(child.country||"")}</p><div class="stats"><div><b>${totalQuestions}</b><small>Questions</small></div><div><b>${correct}</b><small>Correct</small></div><div><b>${accuracy}%</b><small>Accuracy</small></div></div><p><strong>Lessons completed:</strong> ${progress?.length||0}</p>${weakBlock}<h4 style="margin-bottom:10px">📚 Subject progress</h4><div class="grid">${subjectRows||'<div class="card"><p class="muted">No subject practice recorded yet.</p></div>'}</div><h4 style="margin:18px 0 8px">🕘 Recent practice</h4>${recentBlock}</div>`);
   }
   $("children").innerHTML=cards.join("")||`<div class="card">No linked children found.</div>`;
+}
+
+function formatDate(value){
+  if(!value)return "";
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime()))return "";
+  return ` • ${d.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})}`;
 }
 
 $("connectChild").onclick=async()=>{
