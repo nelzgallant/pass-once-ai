@@ -95,7 +95,16 @@ $("saveProfile").onclick=async()=>{
   }
 };
 
-async function findClass(){const wanted=normalizeLevel(profile?.level);const {data,error}=await sb.from("classes").select("id,name");if(error)throw error;return(data||[]).find(c=>normalizeLevel(c.name)===wanted)||null;}
+async function findClass(){
+  const wanted=normalizeLevel(profile?.level);
+  const {data,error}=await sb.from("classes").select("id,name");
+  if(error)throw error;
+  const found=(data||[]).find(c=>normalizeLevel(c.name)===wanted);
+  // Keep the current JSS1 practice demo usable even if the class mapping table is empty.
+  if(found)return found;
+  if(wanted==="JSS1")return {id:1,name:"JSS1"};
+  return null;
+}
 
 async function renderDash(openPractice=true){
   $("welcome").textContent=`Welcome, ${profile.full_name} 👋🏾`;
@@ -105,12 +114,19 @@ async function renderDash(openPractice=true){
   if(attemptsError)throw attemptsError;
   const a=attempts||[],attempted=a.reduce((n,x)=>n+Number(x.total||0),0),correct=a.reduce((n,x)=>n+Number(x.score||0),0);
   $("attempts").textContent=attempted;$("correct").textContent=correct;$("accuracy").textContent=(attempted?Math.round(correct/attempted*100):0)+"%";
-  if(!classRow){const noSubjects=`<div class="card">Choose JSS1 for the current practice demo.</div>`;$("subjects").innerHTML=noSubjects;$("practiceSubjects").innerHTML=noSubjects;show("subjectSelect");return;}
-  const {data:subjects,error}=await sb.from("curriculum_subjects").select("subject_id, subjects(id,name)").eq("class_id",classRow.id);
-  if(error)throw error;
-  const unique=[];for(const row of(subjects||[])){const s=row.subjects;if(s&&!unique.some(x=>x.id===s.id))unique.push(s);}
-  if(!unique.length){const fallback=await sb.from("subjects").select("id,name").order("id");if(fallback.error)throw fallback.error;unique.push(...(fallback.data||[]));}
-  const subjectHtml=unique.map(s=>`<button class="card subject" data-id="${s.id}" data-name="${escapeHtml(s.name)}" type="button">📚 ${escapeHtml(s.name)}</button>`).join("")||`<div class="card">No subjects found yet.</div>`;
+  // Prefer class-specific subjects, but fall back to the existing subjects table.
+  let unique=[];
+  if(classRow){
+    const {data:subjects,error}=await sb.from("curriculum_subjects").select("subject_id, subjects(id,name)").eq("class_id",classRow.id);
+    if(error)throw error;
+    for(const row of(subjects||[])){const s=row.subjects;if(s&&!unique.some(x=>x.id===s.id))unique.push(s);}
+  }
+  if(!unique.length){
+    const fallback=await sb.from("subjects").select("id,name").order("id");
+    if(fallback.error)throw fallback.error;
+    unique=fallback.data||[];
+  }
+  const subjectHtml=unique.map(s=>`<button class="card subject" data-id="${s.id}" data-name="${escapeHtml(s.name)}" type="button" style="cursor:pointer;text-align:left;width:100%;min-height:92px;font-size:1.05rem">📚 <strong>${escapeHtml(s.name)}</strong><small style="display:block;margin-top:6px;opacity:.7">Tap to start practice</small></button>`).join("")||`<div class="card">No subjects found yet.</div>`;
   $("subjects").innerHTML=subjectHtml;
   $("practiceSubjects").innerHTML=subjectHtml;
   document.querySelectorAll(".subject").forEach(btn=>btn.onclick=()=>start(Number(btn.dataset.id),btn.dataset.name));
@@ -199,7 +215,8 @@ $("connectChild").onclick=async()=>{
 $("generateParentCode").onclick=generateParentCode;
 
 async function start(subjectId,subjectName){
-  if(!classRow)return;currentSubject={id:subjectId,name:subjectName};currentQuestions=[];currentIndex=0;currentScore=0;show("quiz");$("question").textContent="Loading questions…";$("options").innerHTML="";$("explain").classList.add("hidden");$("next").classList.add("hidden");
+  if(!classRow)classRow={id:1,name:"JSS1"};
+  currentSubject={id:subjectId,name:subjectName};currentQuestions=[];currentIndex=0;currentScore=0;show("quiz");$("question").textContent="Loading questions…";$("options").innerHTML="";$("explain").classList.add("hidden");$("next").classList.add("hidden");
   try{const ids=await topicIds(subjectId,classRow.id);if(!ids.length){$("question").textContent=`No topics are loaded for ${subjectName} yet.`;return;}const {data,error}=await sb.from("questions").select("id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type").eq("language_code","en").in("topic_id",ids);if(error)throw error;currentQuestions=data||[];if(!currentQuestions.length){$("question").textContent=`No practice questions are loaded for ${subjectName} yet.`;$("options").innerHTML=`<p>Add questions in Supabase and they will appear here automatically.</p>`;return;}renderQ();}catch(e){$("question").textContent="Could not load questions.";$("explain").textContent=e.message;$("explain").classList.remove("hidden");}
 }
 async function topicIds(subjectId,classId){const {data,error}=await sb.from("topics").select("id").eq("subject_id",subjectId).eq("class_id",classId).order("id");if(error)throw error;return(data||[]).map(x=>x.id);}
