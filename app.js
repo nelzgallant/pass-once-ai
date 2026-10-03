@@ -1,240 +1,604 @@
 const sb = supabase.createClient(window.PASS_ONCE_URL, window.PASS_ONCE_KEY);
-const $ = id => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
 
-let signup = false, user = null, profile = null, classRow = null;
-let currentSubject = null, currentQuestions = [], currentIndex = 0, currentScore = 0, answered = false;
+let signup = false,
+  user = null,
+  profile = null,
+  classRow = null;
+let currentSubject = null,
+  currentQuestions = [],
+  currentIndex = 0,
+  currentScore = 0,
+  answered = false;
 
-function show(id){
-  ["auth","setup","subjectSelect","dash","parentDash","quiz","tutorView"].forEach(x => $(x).classList.add("hidden"));
+function show(id) {
+  [
+    "auth",
+    "setup",
+    "subjectSelect",
+    "dash",
+    "parentDash",
+    "quiz",
+    "tutorView",
+  ].forEach((x) => $(x).classList.add("hidden"));
   $(id).classList.remove("hidden");
 }
-function message(text=""){ $("msg").textContent=text; }
-function parentMessage(text=""){ $("parentMsg").textContent=text; }
-function setupMessage(text=""){ $("setupMsg").textContent=text; }
-function escapeHtml(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
-function normalizeLevel(level){return String(level||"JSS 1").replace(/\s+/g,"").toUpperCase();}
-function redirectUrl(){return window.location.origin + window.location.pathname;}
-async function getCurrentUser(){const {data,error}=await sb.auth.getUser();if(error) throw error;return data.user;}
+function message(text = "") {
+  $("msg").textContent = text;
+}
+function parentMessage(text = "") {
+  $("parentMsg").textContent = text;
+}
+function setupMessage(text = "") {
+  $("setupMsg").textContent = text;
+}
+function escapeHtml(s = "") {
+  return String(s).replace(
+    /[&<>"']/g,
+    (m) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[
+        m
+      ])
+  );
+}
+function normalizeLevel(level) {
+  return String(level || "JSS 1")
+    .replace(/\s+/g, "")
+    .toUpperCase();
+}
+function redirectUrl() {
+  return window.location.origin + window.location.pathname;
+}
+async function getCurrentUser() {
+  const { data, error } = await sb.auth.getUser();
+  if (error) throw error;
+  return data.user;
+}
 
-function setAuthMode(isSignup){
-  signup=isSignup;
-  $("loginTab").classList.toggle("active",!signup);
-  $("signupTab").classList.toggle("active",signup);
-  $("nameBox").classList.toggle("hidden",!signup);
-  $("accountTypeBox").classList.toggle("hidden",!signup);
-  $("authBtn").innerHTML=signup?'Create account <span>→</span>':'Log in <span>→</span>';
-  $("authTitle").textContent=signup?'Create your Pass Once AI account':'Welcome Back!';
-  $("authSubtitle").textContent=signup?'Start your learning journey today.':'Log in to continue your learning journey.';
-  $("password").setAttribute('autocomplete',signup?'new-password':'current-password');
+function setAuthMode(isSignup) {
+  signup = isSignup;
+  $("loginTab").classList.toggle("active", !signup);
+  $("signupTab").classList.toggle("active", signup);
+  $("nameBox").classList.toggle("hidden", !signup);
+  $("accountTypeBox").classList.toggle("hidden", !signup);
+  $("authBtn").innerHTML = signup
+    ? "Create account <span>→</span>"
+    : "Log in <span>→</span>";
+  $("authTitle").textContent = signup
+    ? "Create your Pass Once AI account"
+    : "Welcome Back!";
+  $("authSubtitle").textContent = signup
+    ? "Start your learning journey today."
+    : "Log in to continue your learning journey.";
+  $("password").setAttribute(
+    "autocomplete",
+    signup ? "new-password" : "current-password"
+  );
   message("");
 }
-$("loginTab").onclick=()=>setAuthMode(false);
-$("signupTab").onclick=()=>setAuthMode(true);
+$("loginTab").onclick = () => setAuthMode(false);
+$("signupTab").onclick = () => setAuthMode(true);
 
-$("authBtn").onclick=async()=>{
-  const email=$("email").value.trim(), password=$("password").value;
-  if(!email||!password)return message("Please enter your email and password.");
-  if(signup && !$("name").value.trim())return message("Please enter your full name.");
-  try{
-    $("authBtn").disabled=true;
-    const result=signup
-      ? await sb.auth.signUp({email,password,options:{data:{full_name:$("name").value.trim(),account_type:$("accountType").value},emailRedirectTo:redirectUrl()}})
-      : await sb.auth.signInWithPassword({email,password});
-    if(result.error)throw result.error;
-    if(signup&&!result.data.session){message("Account created! Check your email, then tap the verification link to return to Pass Once AI.");return;}
+$("authBtn").onclick = async () => {
+  const email = $("email").value.trim(),
+    password = $("password").value;
+  if (!email || !password)
+    return message("Please enter your email and password.");
+  if (signup && !$("name").value.trim())
+    return message("Please enter your full name.");
+  try {
+    $("authBtn").disabled = true;
+    const result = signup
+      ? await sb.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: $("name").value.trim(),
+              account_type: $("accountType").value,
+            },
+            emailRedirectTo: redirectUrl(),
+          },
+        })
+      : await sb.auth.signInWithPassword({ email, password });
+    if (result.error) throw result.error;
+    if (signup && !result.data.session) {
+      message(
+        "Account created! Check your email, then tap the verification link to return to Pass Once AI."
+      );
+      return;
+    }
     await load();
-  }catch(e){message(e.message||"Authentication failed.");}
-  finally{$("authBtn").disabled=false;}
+  } catch (e) {
+    message(e.message || "Authentication failed.");
+  } finally {
+    $("authBtn").disabled = false;
+  }
 };
 
-async function load(){
-  try{
-    user=await getCurrentUser();
-    if(!user){$("logout").classList.add("hidden");show("auth");return;}
-    $("logout").classList.remove("hidden");
-    const {data:p,error}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
-    if(error)throw error;
-    if(!p){
-      const requestedRole=user.user_metadata?.account_type==="parent"?"parent":"student";
-      prepareSetup(requestedRole);show("setup");return;
+async function load() {
+  try {
+    user = await getCurrentUser();
+    if (!user) {
+      $("logout").classList.add("hidden");
+      show("auth");
+      return;
     }
-    profile=p;
-    if(profile.role==="parent") await renderParentDash(); else await renderDash();
-  }catch(e){
-    const msg=e.message||"Could not load your account.";
-    if($("setupMsg") && !$("setup").classList.contains("hidden")) setupMessage("❌ "+msg);
+    $("logout").classList.remove("hidden");
+    const { data: p, error } = await sb
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!p) {
+      const requestedRole =
+        user.user_metadata?.account_type === "parent" ? "parent" : "student";
+      prepareSetup(requestedRole);
+      show("setup");
+      return;
+    }
+    profile = p;
+    if (profile.role === "parent") await renderParentDash();
+    else await renderDash();
+  } catch (e) {
+    const msg = e.message || "Could not load your account.";
+    if ($("setupMsg") && !$("setup").classList.contains("hidden"))
+      setupMessage("❌ " + msg);
     else message(msg);
   }
 }
 
-function prepareSetup(role){
-  $("setupPill").textContent=role==="parent"?"Parent profile":"Student profile";
-  $("setupTitle").textContent=role==="parent"?"Set up your parent account":"Tell us about your learning";
-  $("setupName").value=user?.user_metadata?.full_name||"";
-  $("studentSetupFields").classList.toggle("hidden",role==="parent");
+function prepareSetup(role) {
+  $("setupPill").textContent =
+    role === "parent" ? "Parent profile" : "Student profile";
+  $("setupTitle").textContent =
+    role === "parent"
+      ? "Set up your parent account"
+      : "Tell us about your learning";
+  $("setupName").value = user?.user_metadata?.full_name || "";
+  $("studentSetupFields").classList.toggle("hidden", role === "parent");
 }
 
-$("saveProfile").onclick=async()=>{
-  try{
-    user=await getCurrentUser();
-    if(!user)return show("auth");
-    const role=user.user_metadata?.account_type==="parent"?"parent":"student";
-    const p={id:user.id,full_name:$("setupName").value.trim()||user.user_metadata?.full_name||user.email.split("@")[0],role};
-    if(role==="student"){
-      p.country=$("country").value;
-      p.level=$("level").value;
-      p.language=$("language").value;
+$("saveProfile").onclick = async () => {
+  try {
+    user = await getCurrentUser();
+    if (!user) return show("auth");
+    const role =
+      user.user_metadata?.account_type === "parent" ? "parent" : "student";
+    const p = {
+      id: user.id,
+      full_name:
+        $("setupName").value.trim() ||
+        user.user_metadata?.full_name ||
+        user.email.split("@")[0],
+      role,
+    };
+    if (role === "student") {
+      p.country = $("country").value;
+      p.level = $("level").value;
+      p.language = $("language").value;
     }
     setupMessage("");
-    const {data:savedProfile,error}=await sb.from("profiles").insert(p).select("*").single();
-    if(error)throw error;
-    profile=savedProfile||p;
-    if(role==="parent")await renderParentDash();else await renderDash();
-  }catch(e){
-    setupMessage("❌ "+(e.message||"Could not save profile."));
+    const { data: savedProfile, error } = await sb
+      .from("profiles")
+      .insert(p)
+      .select("*")
+      .single();
+    if (error) throw error;
+    profile = savedProfile || p;
+    if (role === "parent") await renderParentDash();
+    else await renderDash();
+  } catch (e) {
+    setupMessage("❌ " + (e.message || "Could not save profile."));
   }
 };
 
-async function findClass(){
-  const wanted=normalizeLevel(profile?.level);
-  const {data,error}=await sb.from("classes").select("id,name");
-  if(error)throw error;
-  const found=(data||[]).find(c=>normalizeLevel(c.name)===wanted);
+async function findClass() {
+  const wanted = normalizeLevel(profile?.level);
+  const { data, error } = await sb.from("classes").select("id,name");
+  if (error) throw error;
+  const found = (data || []).find((c) => normalizeLevel(c.name) === wanted);
   // Keep the current JSS1 practice demo usable even if the class mapping table is empty.
-  if(found)return found;
-  if(wanted==="JSS1")return {id:1,name:"JSS1"};
+  if (found) return found;
+  if (wanted === "JSS1") return { id: 1, name: "JSS1" };
   return null;
 }
 
-async function renderDash(openPractice=true){
-  $("welcome").textContent=`Welcome, ${profile.full_name} 👋🏾`;
-  $("profile").textContent=`${profile.country} • ${profile.level} • ${profile.language}`;
-  classRow=await findClass();
-  const {data:attempts,error:attemptsError}=await sb.from("quiz_attempts").select("score,total").eq("user_id",user.id);
-  if(attemptsError)throw attemptsError;
-  const a=attempts||[],attempted=a.reduce((n,x)=>n+Number(x.total||0),0),correct=a.reduce((n,x)=>n+Number(x.score||0),0);
-  $("attempts").textContent=attempted;$("correct").textContent=correct;$("accuracy").textContent=(attempted?Math.round(correct/attempted*100):0)+"%";
+async function renderDash(openPractice = true) {
+  $("welcome").textContent = `Welcome, ${profile.full_name} 👋🏾`;
+  $(
+    "profile"
+  ).textContent = `${profile.country} • ${profile.level} • ${profile.language}`;
+  classRow = await findClass();
+  const { data: attempts, error: attemptsError } = await sb
+    .from("quiz_attempts")
+    .select("score,total")
+    .eq("user_id", user.id);
+  if (attemptsError) throw attemptsError;
+  const a = attempts || [],
+    attempted = a.reduce((n, x) => n + Number(x.total || 0), 0),
+    correct = a.reduce((n, x) => n + Number(x.score || 0), 0);
+  $("attempts").textContent = attempted;
+  $("correct").textContent = correct;
+  $("accuracy").textContent =
+    (attempted ? Math.round((correct / attempted) * 100) : 0) + "%";
   // Prefer class-specific subjects, but fall back to the existing subjects table.
-  let unique=[];
+  let unique = [];
   // Prefer curriculum mappings when available. If they are empty or unavailable,
   // fall back to the existing subjects table so the Practice screen never appears blank.
-  if(classRow){
-    const mapped=await sb.from("curriculum_subjects").select("subject_id, subjects(id,name)").eq("class_id",classRow.id);
-    for(const row of(mapped.data||[])){const s=row.subjects;if(s&&!unique.some(x=>x.id===s.id))unique.push(s);}
+  if (classRow) {
+    const mapped = await sb
+      .from("curriculum_subjects")
+      .select("subject_id, subjects(id,name)")
+      .eq("class_id", classRow.id);
+    for (const row of mapped.data || []) {
+      const s = row.subjects;
+      if (s && !unique.some((x) => x.id === s.id)) unique.push(s);
+    }
   }
-  if(!unique.length){
-    const fallback=await sb.from("subjects").select("id,name").order("id");
-    if(!fallback.error) unique=fallback.data||[];
+  if (!unique.length) {
+    const fallback = await sb.from("subjects").select("id,name").order("id");
+    if (!fallback.error) unique = fallback.data || [];
   }
   // Final safe fallback for the current JSS1 MVP. These match the subjects already
   // created in the Pass Once AI database (Mathematics, English Studies, Basic Science).
-  if(!unique.length && normalizeLevel(profile?.level)==="JSS1") {
-    unique=[{id:1,name:"Mathematics"},{id:2,name:"English Studies"},{id:3,name:"Basic Science"}];
+  if (!unique.length && normalizeLevel(profile?.level) === "JSS1") {
+    unique = [
+      { id: 1, name: "Mathematics" },
+      { id: 2, name: "English Studies" },
+      { id: 3, name: "Basic Science" },
+    ];
   }
-  const subjectHtml=unique.map(s=>`<button class="card subject" data-id="${s.id}" data-name="${escapeHtml(s.name)}" type="button" style="cursor:pointer;text-align:left;width:100%;min-height:92px;font-size:1.05rem">📚 <strong>${escapeHtml(s.name)}</strong><small style="display:block;margin-top:6px;opacity:.7">Tap to start practice</small></button>`).join("")||`<div class="card">No subjects found yet.</div>`;
-  $("subjects").innerHTML=subjectHtml;
-  $("practiceSubjects").innerHTML=subjectHtml;
-  document.querySelectorAll(".subject").forEach(btn=>btn.onclick=()=>start(Number(btn.dataset.id),btn.dataset.name));
-  if(openPractice) show("subjectSelect"); else show("dash");
+  const subjectHtml =
+    unique
+      .map(
+        (s) =>
+          `<button class="card subject" data-id="${ s.id }" data-name="${escapeHtml( s.name )}" type="button" style="cursor:pointer;text-align:left;width:100%;min-height:92px;font-size:1.05rem">📚 <strong>${escapeHtml( s.name )}</strong><small style="display:block;margin-top:6px;opacity:.7">Tap to start practice</small></button>`
+      )
+      .join("") || `<div class="card">No subjects found yet.</div>`;
+  $("subjects").innerHTML = subjectHtml;
+  $("practiceSubjects").innerHTML = subjectHtml;
+  document
+    .querySelectorAll(".subject")
+    .forEach(
+      (btn) =>
+        (btn.onclick = () => start(Number(btn.dataset.id), btn.dataset.name))
+    );
+  if (openPractice) show("subjectSelect");
+  else show("dash");
 }
 
-async function generateParentCode(){
-  try{
-    $("generateParentCode").disabled=true;
-    const {data,error}=await sb.rpc("create_parent_link_code");
-    if(error)throw error;
-    $("parentCodeResult").innerHTML=`Your parent code is <strong style="font-size:1.25rem;letter-spacing:2px">${escapeHtml(data)}</strong><br>Share this code with your parent.`;
-  }catch(e){$("parentCodeResult").textContent=e.message||"Could not generate a parent code.";}
-  finally{$("generateParentCode").disabled=false;}
+async function generateParentCode() {
+  try {
+    $("generateParentCode").disabled = true;
+    const { data, error } = await sb.rpc("create_parent_link_code");
+    if (error) throw error;
+    $(
+      "parentCodeResult"
+    ).innerHTML = `Your parent code is <strong style="font-size:1.25rem;letter-spacing:2px">${escapeHtml( data )}</strong><br>Share this code with your parent.`;
+  } catch (e) {
+    $("parentCodeResult").textContent =
+      e.message || "Could not generate a parent code.";
+  } finally {
+    $("generateParentCode").disabled = false;
+  }
 }
 
-async function renderParentDash(){
+async function renderParentDash() {
   show("parentDash");
-  $("parentWelcome").textContent=`Welcome, ${profile.full_name} 👋🏾`;
+  $("parentWelcome").textContent = `Welcome, ${profile.full_name} 👋🏾`;
   parentMessage("");
   $("parentDetails").classList.add("hidden");
-  const {data:links,error}=await sb.from("parent_child_links").select("child_id,created_at").eq("parent_id",user.id).eq("status","active");
-  if(error)throw error;
-  const childIds=(links||[]).map(x=>x.child_id);
-  if(!childIds.length){
-    $("children").innerHTML=`<div class="card"><h3>No child connected yet</h3><p class="muted">Generate a code from your child's Student Dashboard, then enter it above.</p></div>`;
+  const { data: links, error } = await sb
+    .from("parent_child_links")
+    .select("child_id,created_at")
+    .eq("parent_id", user.id)
+    .eq("status", "active");
+  if (error) throw error;
+  const childIds = (links || []).map((x) => x.child_id);
+  if (!childIds.length) {
+    $(
+      "children"
+    ).innerHTML = `<div class="card"><h3>No child connected yet</h3><p class="muted">Generate a code from your child's Student Dashboard, then enter it above.</p></div>`;
     return;
   }
-  const {data:children,error:childError}=await sb.from("profiles").select("id,full_name,country,level,language").in("id",childIds);
-  if(childError)throw childError;
+  const { data: children, error: childError } = await sb
+    .from("profiles")
+    .select("id,full_name,country,level,language")
+    .in("id", childIds);
+  if (childError) throw childError;
 
-  const cards=[];
-  for(const child of(children||[])){
-    const {data:attempts,error:attemptError}=await sb.from("quiz_attempts").select("score,total,subject,created_at").eq("user_id",child.id).order("created_at",{ascending:false});
-    if(attemptError)throw attemptError;
-    const a=attempts||[];
-    const totalQuestions=a.reduce((n,x)=>n+Number(x.total||0),0);
-    const correct=a.reduce((n,x)=>n+Number(x.score||0),0);
-    const accuracy=totalQuestions?Math.round(correct/totalQuestions*100):0;
-    const {data:progress,error:progressError}=await sb.from("student_progress").select("completed").eq("student_id",child.id).eq("completed",true);
-    if(progressError)throw progressError;
+  const cards = [];
+  for (const child of children || []) {
+    const { data: attempts, error: attemptError } = await sb
+      .from("quiz_attempts")
+      .select("score,total,subject,created_at")
+      .eq("user_id", child.id)
+      .order("created_at", { ascending: false });
+    if (attemptError) throw attemptError;
+    const a = attempts || [];
+    const totalQuestions = a.reduce((n, x) => n + Number(x.total || 0), 0);
+    const correct = a.reduce((n, x) => n + Number(x.score || 0), 0);
+    const accuracy = totalQuestions
+      ? Math.round((correct / totalQuestions) * 100)
+      : 0;
+    const { data: progress, error: progressError } = await sb
+      .from("student_progress")
+      .select("completed")
+      .eq("student_id", child.id)
+      .eq("completed", true);
+    if (progressError) throw progressError;
 
-    const bySubject={};
-    for(const item of a){
-      const subject=item.subject||"Other";
-      if(!bySubject[subject])bySubject[subject]={score:0,total:0,attempts:0,last:item.created_at};
-      bySubject[subject].score+=Number(item.score||0);
-      bySubject[subject].total+=Number(item.total||0);
+    const bySubject = {};
+    for (const item of a) {
+      const subject = item.subject || "Other";
+      if (!bySubject[subject])
+        bySubject[subject] = {
+          score: 0,
+          total: 0,
+          attempts: 0,
+          last: item.created_at,
+        };
+      bySubject[subject].score += Number(item.score || 0);
+      bySubject[subject].total += Number(item.total || 0);
       bySubject[subject].attempts++;
-      if(new Date(item.created_at)>new Date(bySubject[subject].last||0))bySubject[subject].last=item.created_at;
+      if (new Date(item.created_at) > new Date(bySubject[subject].last || 0))
+        bySubject[subject].last = item.created_at;
     }
-    const subjectRows=Object.entries(bySubject).map(([name,v])=>{
-      const pct=v.total?Math.round(v.score/v.total*100):0;
-      const attention=pct<70;
-      return `<div class="card" style="padding:14px"><strong>${escapeHtml(name)}</strong><div style="display:flex;justify-content:space-between;margin:8px 0 6px"><span class="muted">${v.attempts} practice${v.attempts===1?"":"s"}</span><b>${pct}%</b></div><div style="height:8px;background:#e8eef7;border-radius:99px;overflow:hidden"><i style="display:block;width:${Math.min(pct,100)}%;height:100%;background:${attention?'#f4b400':'#2e7d32'}"></i></div></div>`;
-    }).join("");
+    const subjectRows = Object.entries(bySubject)
+      .map(([name, v]) => {
+        const pct = v.total ? Math.round((v.score / v.total) * 100) : 0;
+        const attention = pct < 70;
+        return `<div class="card" style="padding:14px"><strong>${escapeHtml( name )}</strong><div style="display:flex;justify-content:space-between;margin:8px 0 6px"><span class="muted">${ v.attempts } practice${ v.attempts === 1 ? "" : "s" }</span><b>${pct}%</b></div><div style="height:8px;background:#e8eef7;border-radius:99px;overflow:hidden"><i style="display:block;width:${Math.min( pct, 100 )}%;height:100%;background:${ attention ? "#f4b400" : "#2e7d32" }"></i></div></div>`;
+      })
+      .join("");
 
-    const weak=Object.entries(bySubject).filter(([,v])=>v.total && Math.round(v.score/v.total*100)<70).map(([name,v])=>`${escapeHtml(name)} (${Math.round(v.score/v.total*100)}%)`);
-    const recent=a.slice(0,5).map(x=>`<li><strong>${escapeHtml(x.subject||"Practice")}</strong> — ${Number(x.score||0)}/${Number(x.total||0)} <span class="muted">${formatDate(x.created_at)}</span></li>`).join("");
-    const recentBlock=recent?`<ul style="padding-left:20px;line-height:1.9">${recent}</ul>`:`<p class="muted">No practice attempts yet.</p>`;
-    const weakBlock=weak.length?`<p>🔍 <strong>Needs more practice:</strong> ${weak.join(" • ")}</p>`:`<p>🌟 <strong>Needs more practice:</strong> No subject is currently below 70% based on recorded practice.</p>`;
+    const weak = Object.entries(bySubject)
+      .filter(([, v]) => v.total && Math.round((v.score / v.total) * 100) < 70)
+      .map(
+        ([name, v]) =>
+          `${escapeHtml(name)} (${Math.round((v.score / v.total) * 100)}%)`
+      );
+    const recent = a
+      .slice(0, 5)
+      .map(
+        (x) =>
+          `<li><strong>${escapeHtml( x.subject || "Practice" )}</strong> — ${Number(x.score || 0)}/${Number( x.total || 0 )} <span class="muted">${formatDate(x.created_at)}</span></li>`
+      )
+      .join("");
+    const recentBlock = recent
+      ? `<ul style="padding-left:20px;line-height:1.9">${recent}</ul>`
+      : `<p class="muted">No practice attempts yet.</p>`;
+    const weakBlock = weak.length
+      ? `<p>🔍 <strong>Needs more practice:</strong> ${weak.join(" • ")}</p>`
+      : `<p>🌟 <strong>Needs more practice:</strong> No subject is currently below 70% based on recorded practice.</p>`;
 
-    cards.push(`<div class="card"><h3>🎓 ${escapeHtml(child.full_name)}</h3><p class="muted">${escapeHtml(child.level||"Student")} • ${escapeHtml(child.language||"English")} • ${escapeHtml(child.country||"")}</p><div class="stats"><div><b>${totalQuestions}</b><small>Questions</small></div><div><b>${correct}</b><small>Correct</small></div><div><b>${accuracy}%</b><small>Accuracy</small></div></div><p><strong>Lessons completed:</strong> ${progress?.length||0}</p>${weakBlock}<h4 style="margin-bottom:10px">📚 Subject progress</h4><div class="grid">${subjectRows||'<div class="card"><p class="muted">No subject practice recorded yet.</p></div>'}</div><h4 style="margin:18px 0 8px">🕘 Recent practice</h4>${recentBlock}</div>`);
+    cards.push(
+      `<div class="card"><h3>🎓 ${escapeHtml( child.full_name )}</h3><p class="muted">${escapeHtml( child.level || "Student" )} • ${escapeHtml(child.language || "English")} • ${escapeHtml( child.country || "" )}</p><div class="stats"><div><b>${totalQuestions}</b><small>Questions</small></div><div><b>${correct}</b><small>Correct</small></div><div><b>${accuracy}%</b><small>Accuracy</small></div></div><p><strong>Lessons completed:</strong> ${ progress?.length || 0 }</p>${weakBlock}<h4 style="margin-bottom:10px">📚 Subject progress</h4><div class="grid">${ subjectRows || '<div class="card"><p class="muted">No subject practice recorded yet.</p></div>' }</div><h4 style="margin:18px 0 8px">🕘 Recent practice</h4>${recentBlock}</div>`
+    );
   }
-  $("children").innerHTML=cards.join("")||`<div class="card">No linked children found.</div>`;
+  $("children").innerHTML =
+    cards.join("") || `<div class="card">No linked children found.</div>`;
 }
 
-function formatDate(value){
-  if(!value)return "";
-  const d=new Date(value);
-  if(Number.isNaN(d.getTime()))return "";
-  return ` • ${d.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})}`;
+function formatDate(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return ` • ${d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric", })}`;
 }
 
-$("connectChild").onclick=async()=>{
-  const code=$("childCode").value.trim().toUpperCase();
-  if(!code)return parentMessage("Please enter the parent code.");
-  try{
-    $("connectChild").disabled=true;
-    const {data,error}=await sb.rpc("redeem_parent_link_code",{p_code:code});
-    if(error)throw error;
-    parentMessage(data||"Child connected successfully.");$("childCode").value="";await renderParentDash();
-  }catch(e){parentMessage(e.message||"Could not connect this child.");}
-  finally{$("connectChild").disabled=false;}
+$("connectChild").onclick = async () => {
+  const code = $("childCode").value.trim().toUpperCase();
+  if (!code) return parentMessage("Please enter the parent code.");
+  try {
+    $("connectChild").disabled = true;
+    const { data, error } = await sb.rpc("redeem_parent_link_code", {
+      p_code: code,
+    });
+    if (error) throw error;
+    parentMessage(data || "Child connected successfully.");
+    $("childCode").value = "";
+    await renderParentDash();
+  } catch (e) {
+    parentMessage(e.message || "Could not connect this child.");
+  } finally {
+    $("connectChild").disabled = false;
+  }
 };
-$("generateParentCode").onclick=generateParentCode;
+$("generateParentCode").onclick = generateParentCode;
 
-async function start(subjectId,subjectName){
-  if(!classRow)classRow={id:1,name:"JSS1"};
-  currentSubject={id:subjectId,name:subjectName};currentQuestions=[];currentIndex=0;currentScore=0;show("quiz");$("question").textContent="Loading questions…";$("options").innerHTML="";$("explain").classList.add("hidden");$("next").classList.add("hidden");
-  try{const ids=await topicIds(subjectId,classRow.id);if(!ids.length){$("question").textContent=`No topics are loaded for ${subjectName} yet.`;return;}const {data,error}=await sb.from("questions").select("id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type").eq("language_code","en").in("topic_id",ids);if(error)throw error;currentQuestions=data||[];if(!currentQuestions.length){$("question").textContent=`No practice questions are loaded for ${subjectName} yet.`;$("options").innerHTML=`<p>Add questions in Supabase and they will appear here automatically.</p>`;return;}renderQ();}catch(e){$("question").textContent="Could not load questions.";$("explain").textContent=e.message;$("explain").classList.remove("hidden");}
+async function start(subjectId, subjectName) {
+  if (!classRow) classRow = { id: 1, name: "JSS1" };
+  currentSubject = { id: subjectId, name: subjectName };
+  currentQuestions = [];
+  currentIndex = 0;
+  currentScore = 0;
+  show("quiz");
+  $("question").textContent = "Loading questions…";
+  $("options").innerHTML = "";
+  $("explain").classList.add("hidden");
+  $("next").classList.add("hidden");
+  try {
+    const ids = await topicIds(subjectId, classRow.id);
+    if (!ids.length) {
+      $(
+        "question"
+      ).textContent = `No topics are available for ${subjectName} yet.`;
+      $(
+        "options"
+      ).innerHTML = `<p>The subject is connected, but its topics could not be read by the app. Please refresh and try again.</p>`;
+      return;
+    }
+    const { data, error } = await sb
+      .from("questions")
+      .select(
+        "id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type"
+      )
+      .eq("language_code", "en")
+      .in("topic_id", ids);
+    if (error) throw error;
+    currentQuestions = data || [];
+    if (!currentQuestions.length) {
+      $(
+        "question"
+      ).textContent = `No practice questions are loaded for ${subjectName} yet.`;
+      $(
+        "options"
+      ).innerHTML = `<p>Add questions in Supabase and they will appear here automatically.</p>`;
+      return;
+    }
+    renderQ();
+  } catch (e) {
+    $("question").textContent = "Could not load questions.";
+    $("explain").textContent = e.message;
+    $("explain").classList.remove("hidden");
+  }
 }
-async function topicIds(subjectId,classId){const {data,error}=await sb.from("topics").select("id").eq("subject_id",subjectId).eq("class_id",classId).order("id");if(error)throw error;return(data||[]).map(x=>x.id);}
-function renderQ(){const q=currentQuestions[currentIndex],opts=[q.option_a,q.option_b,q.option_c,q.option_d];$("subject").textContent=currentSubject.name;$("count").textContent=`${currentIndex+1}/${currentQuestions.length}`;$("bar").style.width=((currentIndex+1)/currentQuestions.length*100)+"%";$("question").textContent=q.question;$("options").innerHTML=opts.map((x,n)=>`<button class="option" data-i="${n}">${String.fromCharCode(65+n)}. ${escapeHtml(x)}</button>`).join("");$("explain").classList.add("hidden");$("next").classList.add("hidden");answered=false;document.querySelectorAll(".option").forEach(b=>b.onclick=()=>answer(Number(b.dataset.i)));}
-function correctIndex(q){const v=String(q.correct_answer||"").trim().toUpperCase();if(["A","B","C","D"].includes(v))return v.charCodeAt(0)-65;if(["1","2","3","4"].includes(v))return Number(v)-1;return-1;}
-function answer(n){if(answered)return;answered=true;const q=currentQuestions[currentIndex],right=correctIndex(q),buttons=document.querySelectorAll(".option");buttons.forEach(b=>b.disabled=true);if(right>=0)buttons[right].classList.add("correct");if(n===right)currentScore++;else if(n>=0)buttons[n].classList.add("wrong");$("explain").textContent=(n===right?"✅ Correct! ":"❌ Not quite.")+(q.explanation||"Review the lesson and try again.");$("explain").classList.remove("hidden");$("next").textContent=currentIndex<currentQuestions.length-1?"Next Question":"Finish Practice";$("next").classList.remove("hidden");$("next").onclick=nextQuestion;}
-async function nextQuestion(){if(currentIndex<currentQuestions.length-1){currentIndex++;renderQ();return;}try{const {error}=await sb.from("quiz_attempts").insert({user_id:user.id,subject:currentSubject.name,score:currentScore,total:currentQuestions.length});if(error)throw error;$("question").textContent="Practice complete! 🎉";$("options").innerHTML=`<div class="result card"><h2>${currentScore}/${currentQuestions.length}</h2><p>Your result has been saved to your Pass Once AI progress.</p><button class="primary" id="resultDash">Back to Dashboard</button></div>`;$("explain").classList.add("hidden");$("next").classList.add("hidden");$("resultDash").onclick=()=>renderDash(false);}catch(e){$("explain").textContent=`Your score is ${currentScore}/${currentQuestions.length}, but it could not be saved: ${e.message}`;$("explain").classList.remove("hidden");}}
-$("goDashboard").onclick=()=>renderDash(false);
-$("back").onclick=load;
-$("logout").onclick=async()=>{await sb.auth.signOut();user=null;profile=null;classRow=null;$("logout").classList.add("hidden");show("auth");setAuthMode(false);};
-$("tutor").onclick=()=>{show("tutorView");$("chat").innerHTML='<div class="bubble">Hi! I am your Pass Once AI Tutor. Ask me a school question.</div>';};
-$("backTutor").onclick=load;
-$("chatForm").onsubmit=e=>{e.preventDefault();const t=$("ask").value.trim();if(!t)return;const safe=escapeHtml(t),lower=t.toLowerCase(),reply=lower.includes("quadratic")?"A quadratic equation has x² as its highest power. A common form is ax² + bx + c = 0.":lower.includes("photosynthesis")?"Photosynthesis is how green plants use light energy to make food from carbon dioxide and water.":"The full AI Tutor service will provide a tailored explanation, examples and practice questions. This interface is ready for the secure server-side AI connection.";$("chat").insertAdjacentHTML("beforeend",`<div class="bubble user">${safe}</div><div class="bubble">${escapeHtml(reply)}</div>`);$("ask").value="";};
-sb.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_IN"&&session){setTimeout(load,0);}});
+async function topicIds(subjectId, classId) {
+  // First try the exact JSS1 + subject match.
+  let result = await sb
+    .from("topics")
+    .select("id,name,class_id,subject_id")
+    .eq("subject_id", subjectId)
+    .eq("class_id", classId)
+    .order("id");
+  if (result.error) throw result.error;
+  let rows = result.data || [];
+
+  // If the class-specific query returns nothing, try the subject alone.
+  // This makes the current MVP resilient to a class-name/mapping mismatch.
+  if (!rows.length) {
+    result = await sb
+      .from("topics")
+      .select("id,name,class_id,subject_id")
+      .eq("subject_id", subjectId)
+      .order("id");
+    if (result.error) throw result.error;
+    rows = result.data || [];
+  }
+
+  return rows.map((x) => x.id);
+}
+function renderQ() {
+  const q = currentQuestions[currentIndex],
+    opts = [q.option_a, q.option_b, q.option_c, q.option_d];
+  $("subject").textContent = currentSubject.name;
+  $("count").textContent = `${currentIndex + 1}/${currentQuestions.length}`;
+  $("bar").style.width =
+    ((currentIndex + 1) / currentQuestions.length) * 100 + "%";
+  $("question").textContent = q.question;
+  $("options").innerHTML = opts
+    .map(
+      (x, n) =>
+        `<button class="option" data-i="${n}">${String.fromCharCode( 65 + n )}. ${escapeHtml(x)}</button>`
+    )
+    .join("");
+  $("explain").classList.add("hidden");
+  $("next").classList.add("hidden");
+  answered = false;
+  document
+    .querySelectorAll(".option")
+    .forEach((b) => (b.onclick = () => answer(Number(b.dataset.i))));
+}
+function correctIndex(q) {
+  const v = String(q.correct_answer || "")
+    .trim()
+    .toUpperCase();
+  if (["A", "B", "C", "D"].includes(v)) return v.charCodeAt(0) - 65;
+  if (["1", "2", "3", "4"].includes(v)) return Number(v) - 1;
+  return -1;
+}
+function answer(n) {
+  if (answered) return;
+  answered = true;
+  const q = currentQuestions[currentIndex],
+    right = correctIndex(q),
+    buttons = document.querySelectorAll(".option");
+  buttons.forEach((b) => (b.disabled = true));
+  if (right >= 0) buttons[right].classList.add("correct");
+  if (n === right) currentScore++;
+  else if (n >= 0) buttons[n].classList.add("wrong");
+  $("explain").textContent =
+    (n === right ? "✅ Correct! " : "❌ Not quite.") +
+    (q.explanation || "Review the lesson and try again.");
+  $("explain").classList.remove("hidden");
+  $("next").textContent =
+    currentIndex < currentQuestions.length - 1
+      ? "Next Question"
+      : "Finish Practice";
+  $("next").classList.remove("hidden");
+  $("next").onclick = nextQuestion;
+}
+async function nextQuestion() {
+  if (currentIndex < currentQuestions.length - 1) {
+    currentIndex++;
+    renderQ();
+    return;
+  }
+  try {
+    const { error } = await sb
+      .from("quiz_attempts")
+      .insert({
+        user_id: user.id,
+        subject: currentSubject.name,
+        score: currentScore,
+        total: currentQuestions.length,
+      });
+    if (error) throw error;
+    $("question").textContent = "Practice complete! 🎉";
+    $(
+      "options"
+    ).innerHTML = `<div class="result card"><h2>${currentScore}/${currentQuestions.length}</h2><p>Your result has been saved to your Pass Once AI progress.</p><button class="primary" id="resultDash">Back to Dashboard</button></div>`;
+    $("explain").classList.add("hidden");
+    $("next").classList.add("hidden");
+    $("resultDash").onclick = () => renderDash(false);
+  } catch (e) {
+    $(
+      "explain"
+    ).textContent = `Your score is ${currentScore}/${currentQuestions.length}, but it could not be saved: ${e.message}`;
+    $("explain").classList.remove("hidden");
+  }
+}
+$("goDashboard").onclick = () => renderDash(false);
+$("back").onclick = load;
+$("logout").onclick = async () => {
+  await sb.auth.signOut();
+  user = null;
+  profile = null;
+  classRow = null;
+  $("logout").classList.add("hidden");
+  show("auth");
+  setAuthMode(false);
+};
+$("tutor").onclick = () => {
+  show("tutorView");
+  $("chat").innerHTML =
+    '<div class="bubble">Hi! I am your Pass Once AI Tutor. Ask me a school question.</div>';
+};
+$("backTutor").onclick = load;
+$("chatForm").onsubmit = (e) => {
+  e.preventDefault();
+  const t = $("ask").value.trim();
+  if (!t) return;
+  const safe = escapeHtml(t),
+    lower = t.toLowerCase(),
+    reply = lower.includes("quadratic")
+      ? "A quadratic equation has x² as its highest power. A common form is ax² + bx + c = 0."
+      : lower.includes("photosynthesis")
+      ? "Photosynthesis is how green plants use light energy to make food from carbon dioxide and water."
+      : "The full AI Tutor service will provide a tailored explanation, examples and practice questions. This interface is ready for the secure server-side AI connection.";
+  $("chat").insertAdjacentHTML(
+    "beforeend",
+    `<div class="bubble user">${safe}</div><div class="bubble">${escapeHtml( reply )}</div>`
+  );
+  $("ask").value = "";
+};
+sb.auth.onAuthStateChange((event, session) => {
+  if (event === "SIGNED_IN" && session) {
+    setTimeout(load, 0);
+  }
+});
 setAuthMode(false);
 load();
