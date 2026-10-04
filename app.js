@@ -2,7 +2,7 @@ const sb = supabase.createClient(window.PASS_ONCE_URL, window.PASS_ONCE_KEY);
 const $ = id => document.getElementById(id);
 
 let signup = false, user = null, profile = null, classRow = null;
-let currentSubject = null, currentQuestions = [], currentIndex = 0, currentScore = 0, answered = false;
+let currentSubject = null, currentTopic = null, currentQuestions = [], currentAnswers = [], currentIndex = 0, currentScore = 0, answered = false;
 
 function show(id){
   ["auth","setup","subjectSelect","dash","parentDash","quiz","tutorView"].forEach(x => $(x).classList.add("hidden"));
@@ -220,41 +220,29 @@ $("connectChild").onclick=async()=>{
 $("generateParentCode").onclick=generateParentCode;
 
 async function start(subjectId,subjectName){
-  if(!classRow)classRow={id:1,name:"JSS1"};
-  currentSubject={id:subjectId,name:subjectName};currentQuestions=[];currentIndex=0;currentScore=0;show("quiz");$("question").textContent="Loading questions…";$("options").innerHTML="";$("explain").classList.add("hidden");$("next").classList.add("hidden");
-  try{
-  const ids=await topicIds(subjectId,classRow.id);
-  if(!ids.length){
-    $("question").textContent=`No topics are available for ${subjectName} yet.`;
-    $("options").innerHTML=`<p>The subject is connected, but its topics could not be read by the app. Please refresh and try again.</p>`;
-    return;
-  }
-  const {data,error}=await sb.from("questions").select("id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type").eq("language_code","en").in("topic_id",ids);
-  if(error)throw error;
-  currentQuestions=data||[];if(!currentQuestions.length){$("question").textContent=`No practice questions are loaded for ${subjectName} yet.`;$("options").innerHTML=`<p>Add questions in Supabase and they will appear here automatically.</p>`;return;}renderQ();}catch(e){$("question").textContent="Could not load questions.";$("explain").textContent=e.message;$("explain").classList.remove("hidden");}
+  if(!classRow)classRow={id:1,name:"JSS1"}; currentSubject={id:subjectId,name:subjectName}; currentTopic=null; show("quiz");
+  $("subject").textContent=subjectName+" — Choose a Topic"; $("count").textContent=""; $("bar").style.width="0%";
+  $("question").textContent="Choose a topic to begin your practice."; $("explain").classList.add("hidden"); $("next").classList.add("hidden"); ensureSubmitButton(); $("submitQuiz").classList.add("hidden");
+  try{const topics=await getPracticeTopics(subjectId,classRow.id);if(!topics.length){$("options").innerHTML=`<p class="muted">No topics are available for ${escapeHtml(subjectName)} yet.</p>`;return;}
+    $("options").innerHTML=topics.map(t=>`<button class="subject" type="button" data-topic-id="${t.id}" style="text-align:left;margin-bottom:10px"><strong>${escapeHtml(t.name)}</strong>${t.description?`<div class="muted" style="margin-top:5px">${escapeHtml(t.description)}</div>`:""}</button>`).join("");
+    document.querySelectorAll("[data-topic-id]").forEach(btn=>btn.onclick=()=>startTopic(Number(btn.dataset.topicId),subjectName,btn.querySelector("strong")?.textContent||"Topic"));
+  }catch(e){console.error(e);$("options").innerHTML=`<p>Could not load topics right now.</p>`;}
 }
-async function topicIds(subjectId,classId){
-  // First try the exact JSS1 + subject match.
-  let result=await sb.from("topics").select("id,name,class_id,subject_id").eq("subject_id",subjectId).eq("class_id",classId).order("id");
-  if(result.error)throw result.error;
-  let rows=result.data||[];
-
-  // If the class-specific query returns nothing, try the subject alone.
-  // This makes the current MVP resilient to a class-name/mapping mismatch.
-  if(!rows.length){
-    result=await sb.from("topics").select("id,name,class_id,subject_id").eq("subject_id",subjectId).order("id");
-    if(result.error)throw result.error;
-    rows=result.data||[];
-  }
-
-  return rows.map(x=>x.id);
+async function getPracticeTopics(subjectId,classId){let r=await sb.from("topics").select("id,name,description,class_id,subject_id").eq("subject_id",subjectId).eq("class_id",classId).order("id");if(r.error)throw r.error;let rows=r.data||[];if(!rows.length){r=await sb.from("topics").select("id,name,description,class_id,subject_id").eq("subject_id",subjectId).order("id");if(r.error)throw r.error;rows=r.data||[];}return rows;}
+async function startTopic(topicId,subjectName,topicName){
+  currentTopic={id:topicId,name:topicName};currentQuestions=[];currentAnswers=[];currentIndex=0;currentScore=0;answered=false;
+  $("subject").textContent=subjectName+" — "+topicName;$("question").textContent="Loading questions…";$("options").innerHTML="";$("explain").classList.add("hidden");$("next").classList.add("hidden");ensureSubmitButton();$("submitQuiz").classList.add("hidden");
+  try{const {data,error}=await sb.from("questions").select("id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type").eq("language_code","en").eq("topic_id",topicId).order("id");if(error)throw error;currentQuestions=data||[];if(!currentQuestions.length){$("question").textContent="No questions available for this topic yet.";$("options").innerHTML=`<button class="ghost" type="button" id="backToTopics">← Back to Topics</button>`;$("backToTopics").onclick=()=>start(currentSubject.id,subjectName);return;}currentAnswers=new Array(currentQuestions.length).fill(null);renderQ();}catch(e){console.error(e);$("question").textContent="Could not load questions.";$("explain").textContent=e.message;$("explain").classList.remove("hidden");}
 }
-function renderQ(){const q=currentQuestions[currentIndex],opts=[q.option_a,q.option_b,q.option_c,q.option_d];$("subject").textContent=currentSubject.name;$("count").textContent=`${currentIndex+1}/${currentQuestions.length}`;$("bar").style.width=((currentIndex+1)/currentQuestions.length*100)+"%";$("question").textContent=q.question;$("options").innerHTML=opts.map((x,n)=>`<button class="option" data-i="${n}">${String.fromCharCode(65+n)}. ${escapeHtml(x)}</button>`).join("");$("explain").classList.add("hidden");$("next").classList.add("hidden");answered=false;document.querySelectorAll(".option").forEach(b=>b.onclick=()=>answer(Number(b.dataset.i)));}
+async function topicIds(subjectId,classId){const {data,error}=await sb.from("topics").select("id").eq("subject_id",subjectId).eq("class_id",classId).order("id");if(error)throw error;return(data||[]).map(x=>x.id);}
+function ensureSubmitButton(){if($("submitQuiz"))return;const b=document.createElement("button");b.id="submitQuiz";b.className="primary hidden";b.type="button";b.textContent="Submit Quiz";$("next").insertAdjacentElement("afterend",b);b.onclick=submitQuiz;}
+function renderQ(){ensureSubmitButton();const q=currentQuestions[currentIndex],opts=[q.option_a,q.option_b,q.option_c,q.option_d];$("subject").textContent=currentSubject.name+" — "+(currentTopic?.name||"");$("count").textContent=`Question ${currentIndex+1} of ${currentQuestions.length}`;$("bar").style.width=((currentIndex+1)/currentQuestions.length*100)+"%";$("question").textContent=q.question;$("options").innerHTML=opts.map((x,n)=>`<button class="option" data-i="${n}">${String.fromCharCode(65+n)}. ${escapeHtml(x)}</button>`).join("");$("explain").classList.add("hidden");$("next").classList.add("hidden");$("submitQuiz").classList.toggle("hidden",currentAnswers[currentIndex]===null);answered=currentAnswers[currentIndex]!==null;document.querySelectorAll(".option").forEach(b=>{b.onclick=()=>answer(Number(b.dataset.i));if(currentAnswers[currentIndex]===Number(b.dataset.i))b.classList.add("selected");});}
 function correctIndex(q){const v=String(q.correct_answer||"").trim().toUpperCase();if(["A","B","C","D"].includes(v))return v.charCodeAt(0)-65;if(["1","2","3","4"].includes(v))return Number(v)-1;return-1;}
-function answer(n){if(answered)return;answered=true;const q=currentQuestions[currentIndex],right=correctIndex(q),buttons=document.querySelectorAll(".option");buttons.forEach(b=>b.disabled=true);if(right>=0)buttons[right].classList.add("correct");if(n===right)currentScore++;else if(n>=0)buttons[n].classList.add("wrong");$("explain").textContent=(n===right?"✅ Correct! ":"❌ Not quite.")+(q.explanation||"Review the lesson and try again.");$("explain").classList.remove("hidden");$("next").textContent=currentIndex<currentQuestions.length-1?"Next Question":"Finish Practice";$("next").classList.remove("hidden");$("next").onclick=nextQuestion;}
-async function nextQuestion(){if(currentIndex<currentQuestions.length-1){currentIndex++;renderQ();return;}try{const {error}=await sb.from("quiz_attempts").insert({user_id:user.id,subject:currentSubject.name,score:currentScore,total:currentQuestions.length});if(error)throw error;$("question").textContent="Practice complete! 🎉";$("options").innerHTML=`<div class="result card"><h2>${currentScore}/${currentQuestions.length}</h2><p>Your result has been saved to your Pass Once AI progress.</p><button class="primary" id="resultDash">Back to Dashboard</button></div>`;$("explain").classList.add("hidden");$("next").classList.add("hidden");$("resultDash").onclick=()=>renderDash(false);}catch(e){$("explain").textContent=`Your score is ${currentScore}/${currentQuestions.length}, but it could not be saved: ${e.message}`;$("explain").classList.remove("hidden");}}
+function answer(n){currentAnswers[currentIndex]=n;answered=true;document.querySelectorAll(".option").forEach(b=>{b.classList.remove("selected");b.disabled=false;});const selected=document.querySelector(`.option[data-i="${n}"]`);if(selected)selected.classList.add("selected");$("explain").classList.add("hidden");$("next").textContent=currentIndex<currentQuestions.length-1?"Next Question":"Review & Submit";$("next").classList.remove("hidden");$("submitQuiz").classList.remove("hidden");}
+function nextQuestion(){if(currentIndex<currentQuestions.length-1){currentIndex++;renderQ();}else submitQuiz();}
+async function submitQuiz(){const answeredCount=currentAnswers.filter(x=>x!==null).length;if(!answeredCount){$("explain").textContent="Please answer at least one question before submitting.";$("explain").classList.remove("hidden");return;}currentScore=currentQuestions.reduce((s,q,i)=>s+(currentAnswers[i]!==null&&currentAnswers[i]===correctIndex(q)?1:0),0);try{const {error}=await sb.from("quiz_attempts").insert({user_id:user.id,subject:currentSubject.name,score:currentScore,total:currentQuestions.length});if(error)throw error;const review=currentQuestions.map((q,i)=>{const chosen=currentAnswers[i],right=correctIndex(q),status=chosen===null?"⏭️ Not answered":chosen===right?"✅ Correct":"❌ Incorrect";const chosenText=chosen===null?"No answer":q[["option_a","option_b","option_c","option_d"][chosen]];const correctText=q[["option_a","option_b","option_c","option_d"][right]]||"";return `<div class="card" style="margin-top:12px;padding:14px"><strong>${i+1}. ${escapeHtml(q.question)}</strong><p>${status}</p><p><b>Your answer:</b> ${escapeHtml(chosenText||"No answer")}</p><p><b>Correct answer:</b> ${escapeHtml(correctText)}</p>${q.explanation?`<p class="muted"><b>Explanation:</b> ${escapeHtml(q.explanation)}</p>`:""}</div>`;}).join("");$("question").textContent="Practice complete! 🎉";$("options").innerHTML=`<div class="result card"><h2>${currentScore}/${currentQuestions.length}</h2><p>You answered ${answeredCount} of ${currentQuestions.length} question${currentQuestions.length===1?"":"s"}.</p><p><strong>Answers and explanations are now revealed below.</strong></p><button class="primary" id="resultDash">Back to Dashboard</button><button class="ghost" id="resultTopics" style="margin-left:8px">Choose Another Topic</button></div>${review}`;$("explain").classList.add("hidden");$("next").classList.add("hidden");$("submitQuiz").classList.add("hidden");$("resultDash").onclick=()=>renderDash(false);$("resultTopics").onclick=()=>start(currentSubject.id,currentSubject.name);}catch(e){$("explain").textContent=`Your score is ${currentScore}/${currentQuestions.length}, but it could not be saved: ${e.message}`;$("explain").classList.remove("hidden");}}
 $("goDashboard").onclick=()=>renderDash(false);
-$("back").onclick=load;
+$("back").onclick=()=>renderDash(true);
 $("logout").onclick=async()=>{await sb.auth.signOut();user=null;profile=null;classRow=null;$("logout").classList.add("hidden");show("auth");setAuthMode(false);};
 $("tutor").onclick=()=>{show("tutorView");$("chat").innerHTML='<div class="bubble">Hi! I am your Pass Once AI Tutor. Ask me a school question.</div>';};
 $("backTutor").onclick=load;
