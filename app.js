@@ -235,13 +235,94 @@ async function startTopic(topicId,subjectName,topicName){
   try{const {data,error}=await sb.from("questions").select("id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type").eq("language_code","en").eq("topic_id",topicId).order("id");if(error)throw error;currentQuestions=data||[];if(!currentQuestions.length){$("question").textContent="No questions available for this topic yet.";$("options").innerHTML=`<button class="ghost" type="button" id="backToTopics">← Back to Topics</button>`;$("backToTopics").onclick=()=>start(currentSubject.id,subjectName);return;}currentAnswers=new Array(currentQuestions.length).fill(null);renderQ();}catch(e){console.error(e);$("question").textContent="Could not load questions.";$("explain").textContent=e.message;$("explain").classList.remove("hidden");}
 }
 async function topicIds(subjectId,classId){const {data,error}=await sb.from("topics").select("id").eq("subject_id",subjectId).eq("class_id",classId).order("id");if(error)throw error;return(data||[]).map(x=>x.id);}
-function ensureSubmitButton(){if($("submitQuiz"))return;const b=document.createElement("button");b.id="submitQuiz";b.className="primary hidden";b.type="button";b.textContent="Submit Quiz";$("next").insertAdjacentElement("afterend",b);b.onclick=submitQuiz;}
-function renderQ(){ensureSubmitButton();const q=currentQuestions[currentIndex],opts=[q.option_a,q.option_b,q.option_c,q.option_d];$("subject").textContent=currentSubject.name+" — "+(currentTopic?.name||"");$("count").textContent=`Question ${currentIndex+1} of ${currentQuestions.length}`;$("bar").style.width=((currentIndex+1)/currentQuestions.length*100)+"%";$("question").textContent=q.question;$("options").innerHTML=opts.map((x,n)=>`<button class="option" data-i="${n}">${String.fromCharCode(65+n)}. ${escapeHtml(x)}</button>`).join("");$("explain").classList.add("hidden");$("next").classList.add("hidden");$("submitQuiz").classList.remove("hidden");answered=currentAnswers[currentIndex]!==null;document.querySelectorAll(".option").forEach(b=>{b.onclick=()=>answer(Number(b.dataset.i));if(currentAnswers[currentIndex]===Number(b.dataset.i))b.classList.add("selected");});}
+function ensureSubmitButton(){
+  let b=$("submitQuiz");
+  if(!b){
+    b=document.createElement("button");
+    b.id="submitQuiz";
+    b.className="primary";
+    b.type="button";
+    b.textContent="Submit Quiz";
+    $("next").insertAdjacentElement("afterend",b);
+  }
+  b.classList.remove("hidden");
+  b.disabled=false;
+  b.onclick=(e)=>{e.preventDefault();submitQuiz();};
+  return b;
+}
+function renderQ(){
+  const submitBtn=ensureSubmitButton();
+  const q=currentQuestions[currentIndex],opts=[q.option_a,q.option_b,q.option_c,q.option_d];
+  $("subject").textContent=currentSubject.name+" — "+(currentTopic?.name||"");
+  $("count").textContent=`Question ${currentIndex+1} of ${currentQuestions.length}`;
+  $("bar").style.width=((currentIndex+1)/currentQuestions.length*100)+"%";
+  $("question").textContent=q.question;
+  $("options").innerHTML=opts.map((x,n)=>`<button class="option" type="button" data-i="${n}">${String.fromCharCode(65+n)}. ${escapeHtml(x)}</button>`).join("");
+  $("explain").classList.add("hidden");
+  $("next").classList.add("hidden");
+  submitBtn.classList.remove("hidden");
+  submitBtn.disabled=false;
+  answered=currentAnswers[currentIndex]!==null;
+  document.querySelectorAll(".option").forEach(b=>{
+    const index=Number(b.dataset.i);
+    b.onclick=()=>answer(index);
+    b.classList.remove("selected");
+    b.style.background="#fff";
+    b.style.border="1px solid #d3dbe6";
+    b.style.fontWeight="600";
+    if(currentAnswers[currentIndex]===index){
+      b.classList.add("selected");
+      b.style.background="#e7f0ff";
+      b.style.border="2px solid #0b57d0";
+      b.style.boxShadow="0 0 0 3px #0b57d018";
+      b.style.fontWeight="850";
+    }
+  });
+}
 function correctIndex(q){const v=String(q.correct_answer||"").trim().toUpperCase();if(["A","B","C","D"].includes(v))return v.charCodeAt(0)-65;if(["1","2","3","4"].includes(v))return Number(v)-1;return-1;}
-function answer(n){currentAnswers[currentIndex]=n;answered=true;document.querySelectorAll(".option").forEach(b=>{b.classList.remove("selected");b.disabled=false;});const selected=document.querySelector(`.option[data-i="${n}"]`);if(selected)selected.classList.add("selected");$("explain").classList.add("hidden");$("next").textContent=currentIndex<currentQuestions.length-1?"Next Question":"Review & Submit";$("next").classList.remove("hidden");$("submitQuiz").classList.remove("hidden");}
+function answer(n){
+  currentAnswers[currentIndex]=n;
+  answered=true;
+  document.querySelectorAll(".option").forEach(b=>{
+    const isSelected=Number(b.dataset.i)===n;
+    b.classList.toggle("selected",isSelected);
+    b.disabled=false;
+    b.style.background=isSelected?"#e7f0ff":"#fff";
+    b.style.border=isSelected?"2px solid #0b57d0":"1px solid #d3dbe6";
+    b.style.boxShadow=isSelected?"0 0 0 3px #0b57d018":"none";
+    b.style.fontWeight=isSelected?"850":"600";
+  });
+  $("explain").classList.add("hidden");
+  $("next").textContent=currentIndex<currentQuestions.length-1?"Next Question":"Review & Submit";
+  $("next").classList.remove("hidden");
+  ensureSubmitButton().classList.remove("hidden");
+}
 function nextQuestion(){if(currentIndex<currentQuestions.length-1){currentIndex++;renderQ();}else submitQuiz();}
 $("next").onclick=nextQuestion;
-async function submitQuiz(){const answeredCount=currentAnswers.filter(x=>x!==null).length;currentScore=currentQuestions.reduce((s,q,i)=>s+(currentAnswers[i]!==null&&currentAnswers[i]===correctIndex(q)?1:0),0);try{const {error}=await sb.from("quiz_attempts").insert({user_id:user.id,subject:currentSubject.name,score:currentScore,total:currentQuestions.length});if(error)throw error;const review=currentQuestions.map((q,i)=>{const chosen=currentAnswers[i],right=correctIndex(q),status=chosen===null?"⏭️ Not answered":chosen===right?"✅ Correct":"❌ Incorrect";const chosenText=chosen===null?"No answer":q[["option_a","option_b","option_c","option_d"][chosen]];const correctText=q[["option_a","option_b","option_c","option_d"][right]]||"";return `<div class="card" style="margin-top:12px;padding:14px"><strong>${i+1}. ${escapeHtml(q.question)}</strong><p>${status}</p><p><b>Your answer:</b> ${escapeHtml(chosenText||"No answer")}</p><p><b>Correct answer:</b> ${escapeHtml(correctText)}</p>${q.explanation?`<p class="muted"><b>Explanation:</b> ${escapeHtml(q.explanation)}</p>`:""}</div>`;}).join("");$("question").textContent="Practice complete! 🎉";$("options").innerHTML=`<div class="result card"><h2>${currentScore}/${currentQuestions.length}</h2><p>You answered ${answeredCount} of ${currentQuestions.length} question${currentQuestions.length===1?"":"s"}.</p><p><strong>Answers and explanations are now revealed below.</strong></p><button class="primary" id="resultDash">Back to Dashboard</button><button class="ghost" id="resultTopics" style="margin-left:8px">Choose Another Topic</button></div>${review}`;$("explain").classList.add("hidden");$("next").classList.add("hidden");$("submitQuiz").classList.add("hidden");$("resultDash").onclick=()=>renderDash(false);$("resultTopics").onclick=()=>start(currentSubject.id,currentSubject.name);}catch(e){$("explain").textContent=`Your score is ${currentScore}/${currentQuestions.length}, but it could not be saved: ${e.message}`;$("explain").classList.remove("hidden");}}
+async function submitQuiz(){
+  const answeredCount=currentAnswers.filter(x=>x!==null).length;
+  currentScore=currentQuestions.reduce((s,q,i)=>s+(currentAnswers[i]!==null&&currentAnswers[i]===correctIndex(q)?1:0),0);
+  try{
+    const {error}=await sb.from("quiz_attempts").insert({user_id:user.id,subject:currentSubject.name,score:currentScore,total:currentQuestions.length});
+    if(error)throw error;
+    const review=currentQuestions.map((q,i)=>{
+      const chosen=currentAnswers[i],right=correctIndex(q),status=chosen===null?"⏭️ Not answered":chosen===right?"✅ Correct":"❌ Incorrect";
+      const chosenText=chosen===null?"No answer":q[["option_a","option_b","option_c","option_d"][chosen]];
+      const correctText=q[["option_a","option_b","option_c","option_d"][right]]||"";
+      return `<div class="card" style="margin-top:12px;padding:14px"><strong>${i+1}. ${escapeHtml(q.question)}</strong><p>${status}</p><p><b>Your answer:</b> ${escapeHtml(chosenText||"No answer")}</p><p><b>Correct answer:</b> ${escapeHtml(correctText)}</p>${q.explanation?`<p class="muted"><b>Explanation:</b> ${escapeHtml(q.explanation)}</p>`:""}</div>`;
+    }).join("");
+    $("question").textContent="Practice complete! 🎉";
+    $("options").innerHTML=`<div class="result card"><h2>${currentScore}/${currentQuestions.length}</h2><p>You answered ${answeredCount} of ${currentQuestions.length} question${currentQuestions.length===1?"":"s"}.</p><p><strong>Answers and explanations are now revealed below.</strong></p><button class="primary" id="resultDash">Back to Dashboard</button><button class="ghost" id="resultTopics" style="margin-left:8px">Choose Another Topic</button></div>${review}`;
+    $("explain").classList.add("hidden");
+    $("next").classList.add("hidden");
+    $("submitQuiz").classList.add("hidden");
+    $("resultDash").onclick=()=>renderDash(false);
+    $("resultTopics").onclick=()=>start(currentSubject.id,currentSubject.name);
+  }catch(e){
+    $("explain").textContent=`Your score is ${currentScore}/${currentQuestions.length}, but it could not be saved: ${e.message}`;
+    $("explain").classList.remove("hidden");
+  }
+}
 $("goDashboard").onclick=()=>renderDash(false);
 $("back").onclick=()=>renderDash(true);
 $("logout").onclick=async()=>{await sb.auth.signOut();user=null;profile=null;classRow=null;$("logout").classList.add("hidden");show("auth");setAuthMode(false);};
