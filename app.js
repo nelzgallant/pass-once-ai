@@ -114,28 +114,6 @@ async function renderDash(openPractice=true){
   if(attemptsError)throw attemptsError;
   const a=attempts||[],attempted=a.reduce((n,x)=>n+Number(x.total||0),0),correct=a.reduce((n,x)=>n+Number(x.score||0),0);
   $("attempts").textContent=attempted;$("correct").textContent=correct;$("accuracy").textContent=(attempted?Math.round(correct/attempted*100):0)+"%";
-
-  // Safe student progress card: built from the same quiz_attempts data already used
-  // by the working CBT. This is deliberately isolated from the practice functions
-  // so highlighting, Next and Submit remain untouched.
-  const progressOverall = attempted ? Math.round(correct/attempted*100) : 0;
-  const progressRows = {};
-  for(const item of a){
-    const name = String(item.subject || "Other");
-    if(!progressRows[name]) progressRows[name]={score:0,total:0,sessions:0};
-    progressRows[name].score += Number(item.score || 0);
-    progressRows[name].total += Number(item.total || 0);
-    progressRows[name].sessions += 1;
-  }
-  const progressSubjects = Object.entries(progressRows).map(([name,v])=>{
-    const pct = v.total ? Math.round((v.score/v.total)*100) : 0;
-    const width = Math.max(0,Math.min(100,pct));
-    return `<div style="margin-top:14px"><div style="display:flex;justify-content:space-between;gap:10px"><strong>${escapeHtml(name)}</strong><strong>${pct}%</strong></div><div style="height:9px;background:#e8eef7;border-radius:99px;overflow:hidden;margin-top:7px"><span style="display:block;width:${width}%;height:100%;background:#2e7d32;border-radius:99px"></span></div><small class="muted">${v.sessions} practice session${v.sessions===1?"":"s"} • ${v.score}/${v.total} correct</small></div>`;
-  }).join("");
-  const recentPractice = a.slice().sort((x,y)=>new Date(y.created_at||0)-new Date(x.created_at||0)).slice(0,5).map(x=>`<li><strong>${escapeHtml(x.subject || "Practice")}</strong> — ${Number(x.score||0)}/${Number(x.total||0)}${formatDate(x.created_at)}</li>`).join("");
-  const encouragement = !attempted ? "🌱 Start your first practice session to begin tracking your progress." : progressOverall >= 80 ? "🌟 Excellent work! Keep building on this strong performance." : progressOverall >= 60 ? "💪 Good progress! Keep practising to push your score higher." : "🚀 Keep going! Focus on the subjects that need more practice.";
-  const progressCard = `<div class="card" style="margin-bottom:18px"><h2 style="margin-bottom:4px">📈 My Learning Progress</h2><p class="muted">Your real practice performance, updated from your activity.</p><div class="stats" style="margin-top:14px"><div><b>${attempted}</b><small>Questions</small></div><div><b>${correct}</b><small>Correct</small></div><div><b>${progressOverall}%</b><small>Accuracy</small></div></div><p style="margin-top:16px">${encouragement}</p><h3 style="margin:18px 0 8px">📚 Subject progress</h3>${progressSubjects || '<p class="muted">Complete a practice session and your subject progress will appear here.</p>'}<h3 style="margin:18px 0 8px">🕘 Recent activity</h3>${recentPractice ? `<ul style="padding-left:20px;line-height:1.9">${recentPractice}</ul>` : '<p class="muted">No practice activity yet.</p>'}</div>`;
-  $("subjects").dataset.progressCard = progressCard;
   // Prefer class-specific subjects, but fall back to the existing subjects table.
   let unique=[];
   // Prefer curriculum mappings when available. If they are empty or unavailable,
@@ -154,7 +132,30 @@ async function renderDash(openPractice=true){
     unique=[{id:1,name:"Mathematics"},{id:2,name:"English Studies"},{id:3,name:"Basic Science"}];
   }
   const subjectHtml=unique.map(s=>`<button class="card subject" data-id="${s.id}" data-name="${escapeHtml(s.name)}" type="button" style="cursor:pointer;text-align:left;width:100%;min-height:92px;font-size:1.05rem">📚 <strong>${escapeHtml(s.name)}</strong><small style="display:block;margin-top:6px;opacity:.7">Tap to start practice</small></button>`).join("")||`<div class="card">No subjects found yet.</div>`;
-  $("subjects").innerHTML=progressCard+subjectHtml;
+
+  // Progress Tracking Step 2: turn the dashboard into a visual learning summary.
+  // This uses the same real quiz_attempts data already powering the dashboard stats,
+  // plus the existing student_progress lesson records. No new database tables are needed.
+  const progressBySubject={};
+  for(const item of a){
+    const name=item.subject||"Other";
+    if(!progressBySubject[name])progressBySubject[name]={score:0,total:0,attempts:0,last:item.created_at};
+    progressBySubject[name].score+=Number(item.score||0);
+    progressBySubject[name].total+=Number(item.total||0);
+    progressBySubject[name].attempts++;
+    if(new Date(item.created_at)>new Date(progressBySubject[name].last||0))progressBySubject[name].last=item.created_at;
+  }
+  const progressSubjects=Object.entries(progressBySubject).map(([name,v])=>{
+    const pct=v.total?Math.round(v.score/v.total*100):0;
+    return `<div style="margin:12px 0 16px"><div style="display:flex;justify-content:space-between;gap:10px"><strong>${escapeHtml(name)}</strong><b>${pct}%</b></div><div style="height:10px;background:#e8eef7;border-radius:99px;overflow:hidden;margin-top:7px"><span style="display:block;width:${Math.min(pct,100)}%;height:100%;background:${pct<70?'#f4b400':'#2e7d32'};border-radius:99px"></span></div><small class="muted">${v.attempts} practice session${v.attempts===1?'':'s'} • ${v.score}/${v.total} correct</small></div>`;
+  }).join("");
+  const completedLessons=await sb.from("student_progress").select("lesson_id,completed,updated_at").eq("student_id",user.id).eq("completed",true).order("updated_at",{ascending:false});
+  const lessonCount=completedLessons.error?0:(completedLessons.data||[]).length;
+  const recentPractice=a.slice(0,4).map(x=>`<li style="margin-bottom:8px"><strong>${escapeHtml(x.subject||"Practice")}</strong> — ${Number(x.score||0)}/${Number(x.total||0)} <span class="muted">${formatDate(x.created_at)}</span></li>`).join("");
+  const progressMessage=attempted===0?"🌱 Start your first practice session and your progress will appear here.":accuracy>=80?"🌟 Excellent work! You are building strong exam confidence.":accuracy>=60?"💪 Good progress! Keep practising to push your accuracy higher.":"🚀 Keep going! Focus on the subjects that need more practice.";
+  const progressPanel=`<div class="card" style="margin-bottom:16px;border-radius:18px;padding:18px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0 0 4px">📈 My Learning Progress</h3><p class="muted" style="margin:0">Your real practice performance, updated from your activity.</p></div><div style="font-size:1.35rem;font-weight:800">${accuracy}%</div></div><div class="stats" style="margin-top:14px"><div><b>${attempted}</b><small>Questions</small></div><div><b>${correct}</b><small>Correct</small></div><div><b>${lessonCount}</b><small>Lessons done</small></div></div><p style="margin:14px 0 8px">${progressMessage}</p><h4 style="margin:16px 0 8px">📚 Subject progress</h4>${progressSubjects||'<p class="muted">Complete a practice session to see subject progress here.</p>'}<h4 style="margin:16px 0 8px">🕘 Recent activity</h4>${recentPractice?`<ul style="padding-left:20px;margin:0;line-height:1.55">${recentPractice}</ul>`:'<p class="muted">No practice activity yet.</p>'}</div>`;
+
+  $("subjects").innerHTML=progressPanel+subjectHtml;
   $("practiceSubjects").innerHTML=subjectHtml;
   document.querySelectorAll(".subject").forEach(btn=>btn.onclick=()=>start(Number(btn.dataset.id),btn.dataset.name));
   if(openPractice) show("subjectSelect"); else show("dash");
