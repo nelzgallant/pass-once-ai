@@ -171,6 +171,8 @@ async function renderDash(openPractice=true){
   $("subjects").innerHTML=`<div class="card" style="margin-bottom:14px"><h3 style="margin:0 0 4px">📈 My Learning Progress</h3><p class="muted" style="margin:0 0 12px">See your real practice performance.</p><button class="primary" type="button" id="openProgress">View My Progress</button></div><div id="progressPanel" class="hidden"></div><h3 style="margin:18px 0 10px">Subjects</h3>${subjectCards}`;
   $("practiceSubjects").innerHTML=subjectCards;
   $("openProgress").onclick=showStudentProgress;
+  const progressBtn=$("progress");
+  if(progressBtn) progressBtn.onclick=showStudentProgress;
   document.querySelectorAll("#subjects .subject, #practiceSubjects .subject").forEach(btn=>btn.onclick=()=>start(Number(btn.dataset.id),btn.dataset.name));
   if(openPractice)show("subjectSelect");else show("dash");
 }
