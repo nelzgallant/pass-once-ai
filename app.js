@@ -5,8 +5,8 @@ let signup = false, user = null, profile = null, classRow = null;
 let currentSubject = null, currentTopic = null, currentQuestions = [], currentAnswers = [], currentIndex = 0, currentScore = 0, answered = false;
 
 function show(id){
-  ["auth","setup","subjectSelect","dash","parentDash","quiz","tutorView","progressDash"].forEach(x => { const el=$(x); if(el) el.classList.add("hidden"); });
-  const target=$(id); if(target) target.classList.remove("hidden");
+  ["auth","setup","subjectSelect","dash","parentDash","quiz","tutorView"].forEach(x => $(x).classList.add("hidden"));
+  $(id).classList.remove("hidden");
 }
 function message(text=""){ $("msg").textContent=text; }
 function parentMessage(text=""){ $("parentMsg").textContent=text; }
@@ -132,120 +132,33 @@ async function renderDash(openPractice=true){
     unique=[{id:1,name:"Mathematics"},{id:2,name:"English Studies"},{id:3,name:"Basic Science"}];
   }
   const subjectHtml=unique.map(s=>`<button class="card subject" data-id="${s.id}" data-name="${escapeHtml(s.name)}" type="button" style="cursor:pointer;text-align:left;width:100%;min-height:92px;font-size:1.05rem">📚 <strong>${escapeHtml(s.name)}</strong><small style="display:block;margin-top:6px;opacity:.7">Tap to start practice</small></button>`).join("")||`<div class="card">No subjects found yet.</div>`;
-  $("subjects").innerHTML=subjectHtml;
+
+  // Progress Tracking Step 2: turn the dashboard into a visual learning summary.
+  // This uses the same real quiz_attempts data already powering the dashboard stats,
+  // plus the existing student_progress lesson records. No new database tables are needed.
+  const progressBySubject={};
+  for(const item of a){
+    const name=item.subject||"Other";
+    if(!progressBySubject[name])progressBySubject[name]={score:0,total:0,attempts:0,last:item.created_at};
+    progressBySubject[name].score+=Number(item.score||0);
+    progressBySubject[name].total+=Number(item.total||0);
+    progressBySubject[name].attempts++;
+    if(new Date(item.created_at)>new Date(progressBySubject[name].last||0))progressBySubject[name].last=item.created_at;
+  }
+  const progressSubjects=Object.entries(progressBySubject).map(([name,v])=>{
+    const pct=v.total?Math.round(v.score/v.total*100):0;
+    return `<div style="margin:12px 0 16px"><div style="display:flex;justify-content:space-between;gap:10px"><strong>${escapeHtml(name)}</strong><b>${pct}%</b></div><div style="height:10px;background:#e8eef7;border-radius:99px;overflow:hidden;margin-top:7px"><span style="display:block;width:${Math.min(pct,100)}%;height:100%;background:${pct<70?'#f4b400':'#2e7d32'};border-radius:99px"></span></div><small class="muted">${v.attempts} practice session${v.attempts===1?'':'s'} • ${v.score}/${v.total} correct</small></div>`;
+  }).join("");
+  const completedLessons=await sb.from("student_progress").select("lesson_id,completed,updated_at").eq("student_id",user.id).eq("completed",true).order("updated_at",{ascending:false});
+  const lessonCount=completedLessons.error?0:(completedLessons.data||[]).length;
+  const recentPractice=a.slice(0,4).map(x=>`<li style="margin-bottom:8px"><strong>${escapeHtml(x.subject||"Practice")}</strong> — ${Number(x.score||0)}/${Number(x.total||0)} <span class="muted">${formatDate(x.created_at)}</span></li>`).join("");
+  const progressMessage=attempted===0?"🌱 Start your first practice session and your progress will appear here.":accuracy>=80?"🌟 Excellent work! You are building strong exam confidence.":accuracy>=60?"💪 Good progress! Keep practising to push your accuracy higher.":"🚀 Keep going! Focus on the subjects that need more practice.";
+  const progressPanel=`<div class="card" style="margin-bottom:16px;border-radius:18px;padding:18px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0 0 4px">📈 My Learning Progress</h3><p class="muted" style="margin:0">Your real practice performance, updated from your activity.</p></div><div style="font-size:1.35rem;font-weight:800">${accuracy}%</div></div><div class="stats" style="margin-top:14px"><div><b>${attempted}</b><small>Questions</small></div><div><b>${correct}</b><small>Correct</small></div><div><b>${lessonCount}</b><small>Lessons done</small></div></div><p style="margin:14px 0 8px">${progressMessage}</p><h4 style="margin:16px 0 8px">📚 Subject progress</h4>${progressSubjects||'<p class="muted">Complete a practice session to see subject progress here.</p>'}<h4 style="margin:16px 0 8px">🕘 Recent activity</h4>${recentPractice?`<ul style="padding-left:20px;margin:0;line-height:1.55">${recentPractice}</ul>`:'<p class="muted">No practice activity yet.</p>'}</div>`;
+
+  $("subjects").innerHTML=progressPanel+subjectHtml;
   $("practiceSubjects").innerHTML=subjectHtml;
   document.querySelectorAll(".subject").forEach(btn=>btn.onclick=()=>start(Number(btn.dataset.id),btn.dataset.name));
   if(openPractice) show("subjectSelect"); else show("dash");
-}
-
-
-async function renderProgress(){
-  if(!user || profile?.role==="parent")return;
-  ensureProgressView();
-  show("progressDash");
-  $("progressWelcome").textContent=`${profile.full_name}'s Learning Progress 📈`;
-  $("progressMeta").textContent=`${profile.level||"Student"} • ${profile.language||"English"}`;
-  $("progressBody").innerHTML=`<div class="card"><p class="muted">Loading your real learning progress…</p></div>`;
-
-  try{
-    const [{data:attempts,error:attemptsError},{data:lessonRows,error:lessonError}]=await Promise.all([
-      sb.from("quiz_attempts").select("score,total,subject,created_at").eq("user_id",user.id).order("created_at",{ascending:false}),
-      sb.from("student_progress").select("lesson_id,completed,score,updated_at").eq("student_id",user.id)
-    ]);
-    if(attemptsError)throw attemptsError;
-    if(lessonError)throw lessonError;
-
-    const a=attempts||[], lessons=lessonRows||[];
-    const totalQuestions=a.reduce((n,x)=>n+Number(x.total||0),0);
-    const correct=a.reduce((n,x)=>n+Number(x.score||0),0);
-    const accuracy=totalQuestions?Math.round(correct/totalQuestions*100):0;
-    const completedLessons=lessons.filter(x=>x.completed).length;
-    const totalLessonsRecorded=lessons.length;
-
-    const bySubject={};
-    for(const item of a){
-      const subject=item.subject||"Other";
-      if(!bySubject[subject])bySubject[subject]={score:0,total:0,attempts:0,last:item.created_at};
-      bySubject[subject].score+=Number(item.score||0);
-      bySubject[subject].total+=Number(item.total||0);
-      bySubject[subject].attempts++;
-      if(new Date(item.created_at)>new Date(bySubject[subject].last||0))bySubject[subject].last=item.created_at;
-    }
-
-    const subjectRows=Object.entries(bySubject).map(([name,v])=>{
-      const pct=v.total?Math.round(v.score/v.total*100):0;
-      return `<div class="card" style="padding:14px;margin:0 0 10px">
-        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
-          <strong>📚 ${escapeHtml(name)}</strong><b>${pct}%</b>
-        </div>
-        <div style="height:9px;background:#e8eef7;border-radius:99px;overflow:hidden;margin:9px 0">
-          <i style="display:block;width:${Math.min(pct,100)}%;height:100%;background:#0b57d0"></i>
-        </div>
-        <small class="muted">${v.score}/${v.total} correct • ${v.attempts} practice${v.attempts===1?"":"s"}</small>
-      </div>`;
-    }).join("");
-
-    const recent=a.slice(0,6).map(x=>`<li><strong>${escapeHtml(x.subject||"Practice")}</strong> — ${Number(x.score||0)}/${Number(x.total||0)}${formatDate(x.created_at)}</li>`).join("");
-    const recentBlock=recent?`<ul style="padding-left:20px;line-height:1.9">${recent}</ul>`:`<p class="muted">No practice attempts yet.</p>`;
-
-    let streak=0;
-    const daySet=new Set(a.map(x=>{
-      const d=new Date(x.created_at);return Number.isNaN(d.getTime())?null:d.toISOString().slice(0,10);
-    }).filter(Boolean));
-    const cursor=new Date();cursor.setHours(0,0,0,0);
-    while(daySet.has(cursor.toISOString().slice(0,10))){
-      streak++;cursor.setDate(cursor.getDate()-1);
-    }
-
-    const encouragement=accuracy>=80
-      ? "Excellent work! Keep building on this momentum. 🌟"
-      : accuracy>=60
-        ? "Good progress! A little more practice can push you even higher. 💪🏾"
-        : totalQuestions
-          ? "Keep practising. Every question is another step toward your goal. 🚀"
-          : "Start your first practice to begin building your progress record. 🚀";
-
-    $("progressBody").innerHTML=`
-      <div class="stats">
-        <div><b>${totalQuestions}</b><small>Questions</small></div>
-        <div><b>${correct}</b><small>Correct</small></div>
-        <div><b>${accuracy}%</b><small>Accuracy</small></div>
-      </div>
-      <div class="stats" style="margin-top:12px">
-        <div><b>${completedLessons}</b><small>Lessons Completed</small></div>
-        <div><b>${a.length}</b><small>Practice Sessions</small></div>
-        <div><b>${streak}</b><small>Day Streak 🔥</small></div>
-      </div>
-      <div class="card" style="margin-top:14px">
-        <h3>🎯 Your Progress</h3>
-        <p>${encouragement}</p>
-        ${totalLessonsRecorded?`<p class="muted">${completedLessons} of ${totalLessonsRecorded} recorded lesson progress item${totalLessonsRecorded===1?"":"s"} completed.</p>`:`<p class="muted">Lesson completion tracking will appear here as you complete lessons.</p>`}
-      </div>
-      <h3 style="margin-top:20px">📚 Progress by Subject</h3>
-      ${subjectRows||`<div class="card"><p class="muted">Your subject progress will appear after your first practice.</p></div>`}
-      <h3 style="margin-top:20px">🕘 Recent Practice</h3>
-      <div class="card">${recentBlock}</div>`;
-  }catch(e){
-    console.error(e);
-    $("progressBody").innerHTML=`<div class="card"><p>Could not load your progress right now.</p><p class="muted">${escapeHtml(e.message||"Please try again.")}</p></div>`;
-  }
-}
-
-function ensureProgressView(){
-  if($("progressDash"))return;
-  const section=document.createElement("section");
-  section.id="progressDash";
-  section.className="hidden";
-  section.innerHTML=`
-    <button class="back" id="backProgress" type="button">← Dashboard</button>
-    <div class="section">
-      <span class="pill">My Progress</span>
-      <h2 id="progressWelcome"></h2>
-      <p id="progressMeta" class="muted"></p>
-    </div>
-    <div id="progressBody"></div>`;
-  document.body.appendChild(section);
-  $("backProgress").onclick=()=>renderDash(false);
 }
 
 async function generateParentCode(){
@@ -345,95 +258,13 @@ async function startTopic(topicId,subjectName,topicName){
   try{const {data,error}=await sb.from("questions").select("id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type").eq("language_code","en").eq("topic_id",topicId).order("id");if(error)throw error;currentQuestions=data||[];if(!currentQuestions.length){$("question").textContent="No questions available for this topic yet.";$("options").innerHTML=`<button class="ghost" type="button" id="backToTopics">← Back to Topics</button>`;$("backToTopics").onclick=()=>start(currentSubject.id,subjectName);return;}currentAnswers=new Array(currentQuestions.length).fill(null);renderQ();}catch(e){console.error(e);$("question").textContent="Could not load questions.";$("explain").textContent=e.message;$("explain").classList.remove("hidden");}
 }
 async function topicIds(subjectId,classId){const {data,error}=await sb.from("topics").select("id").eq("subject_id",subjectId).eq("class_id",classId).order("id");if(error)throw error;return(data||[]).map(x=>x.id);}
-function ensureSubmitButton(){
-  let b=$("submitQuiz");
-  if(!b){
-    b=document.createElement("button");
-    b.id="submitQuiz";
-    b.className="primary";
-    b.type="button";
-    b.textContent="Submit Quiz";
-    $("next").insertAdjacentElement("afterend",b);
-  }
-  b.classList.remove("hidden");
-  b.disabled=false;
-  b.onclick=(e)=>{e.preventDefault();submitQuiz();};
-  return b;
-}
-function renderQ(){
-  const submitBtn=ensureSubmitButton();
-  const q=currentQuestions[currentIndex],opts=[q.option_a,q.option_b,q.option_c,q.option_d];
-  $("subject").textContent=currentSubject.name+" — "+(currentTopic?.name||"");
-  $("count").textContent=`Question ${currentIndex+1} of ${currentQuestions.length}`;
-  $("bar").style.width=((currentIndex+1)/currentQuestions.length*100)+"%";
-  $("question").textContent=q.question;
-  $("options").innerHTML=opts.map((x,n)=>`<button class="option" type="button" data-i="${n}">${String.fromCharCode(65+n)}. ${escapeHtml(x)}</button>`).join("");
-  $("explain").classList.add("hidden");
-  $("next").classList.add("hidden");
-  submitBtn.classList.remove("hidden");
-  submitBtn.disabled=false;
-  answered=currentAnswers[currentIndex]!==null;
-  document.querySelectorAll(".option").forEach(b=>{
-    const index=Number(b.dataset.i);
-    b.onclick=()=>answer(index);
-    b.classList.remove("selected");
-    b.style.background="#fff";
-    b.style.border="1px solid #d3dbe6";
-    b.style.fontWeight="600";
-    if(currentAnswers[currentIndex]===index){
-      b.classList.add("selected");
-      b.style.background="#e7f0ff";
-      b.style.border="2px solid #0b57d0";
-      b.style.boxShadow="0 0 0 3px #0b57d018";
-      b.style.fontWeight="850";
-    }
-  });
-}
+function ensureSubmitButton(){if($("submitQuiz"))return;const b=document.createElement("button");b.id="submitQuiz";b.className="primary hidden";b.type="button";b.textContent="Submit Quiz";$("next").insertAdjacentElement("afterend",b);b.onclick=submitQuiz;}
+function renderQ(){ensureSubmitButton();const q=currentQuestions[currentIndex],opts=[q.option_a,q.option_b,q.option_c,q.option_d];$("subject").textContent=currentSubject.name+" — "+(currentTopic?.name||"");$("count").textContent=`Question ${currentIndex+1} of ${currentQuestions.length}`;$("bar").style.width=((currentIndex+1)/currentQuestions.length*100)+"%";$("question").textContent=q.question;$("options").innerHTML=opts.map((x,n)=>`<button class="option" data-i="${n}">${String.fromCharCode(65+n)}. ${escapeHtml(x)}</button>`).join("");$("explain").classList.add("hidden");$("next").classList.add("hidden");$("submitQuiz").classList.toggle("hidden",currentAnswers[currentIndex]===null);answered=currentAnswers[currentIndex]!==null;document.querySelectorAll(".option").forEach(b=>{b.onclick=()=>answer(Number(b.dataset.i));if(currentAnswers[currentIndex]===Number(b.dataset.i))b.classList.add("selected");});}
 function correctIndex(q){const v=String(q.correct_answer||"").trim().toUpperCase();if(["A","B","C","D"].includes(v))return v.charCodeAt(0)-65;if(["1","2","3","4"].includes(v))return Number(v)-1;return-1;}
-function answer(n){
-  currentAnswers[currentIndex]=n;
-  answered=true;
-  document.querySelectorAll(".option").forEach(b=>{
-    const isSelected=Number(b.dataset.i)===n;
-    b.classList.toggle("selected",isSelected);
-    b.disabled=false;
-    b.style.background=isSelected?"#e7f0ff":"#fff";
-    b.style.border=isSelected?"2px solid #0b57d0":"1px solid #d3dbe6";
-    b.style.boxShadow=isSelected?"0 0 0 3px #0b57d018":"none";
-    b.style.fontWeight=isSelected?"850":"600";
-  });
-  $("explain").classList.add("hidden");
-  $("next").textContent=currentIndex<currentQuestions.length-1?"Next Question":"Review & Submit";
-  $("next").classList.remove("hidden");
-  ensureSubmitButton().classList.remove("hidden");
-}
+function answer(n){currentAnswers[currentIndex]=n;answered=true;document.querySelectorAll(".option").forEach(b=>{b.classList.remove("selected");b.disabled=false;});const selected=document.querySelector(`.option[data-i="${n}"]`);if(selected)selected.classList.add("selected");$("explain").classList.add("hidden");$("next").textContent=currentIndex<currentQuestions.length-1?"Next Question":"Review & Submit";$("next").classList.remove("hidden");$("submitQuiz").classList.remove("hidden");}
 function nextQuestion(){if(currentIndex<currentQuestions.length-1){currentIndex++;renderQ();}else submitQuiz();}
 $("next").onclick=nextQuestion;
-async function submitQuiz(){
-  const answeredCount=currentAnswers.filter(x=>x!==null).length;
-  currentScore=currentQuestions.reduce((s,q,i)=>s+(currentAnswers[i]!==null&&currentAnswers[i]===correctIndex(q)?1:0),0);
-  try{
-    const {error}=await sb.from("quiz_attempts").insert({user_id:user.id,subject:currentSubject.name,score:currentScore,total:currentQuestions.length});
-    if(error)throw error;
-    const review=currentQuestions.map((q,i)=>{
-      const chosen=currentAnswers[i],right=correctIndex(q),status=chosen===null?"⏭️ Not answered":chosen===right?"✅ Correct":"❌ Incorrect";
-      const chosenText=chosen===null?"No answer":q[["option_a","option_b","option_c","option_d"][chosen]];
-      const correctText=q[["option_a","option_b","option_c","option_d"][right]]||"";
-      return `<div class="card" style="margin-top:12px;padding:14px"><strong>${i+1}. ${escapeHtml(q.question)}</strong><p>${status}</p><p><b>Your answer:</b> ${escapeHtml(chosenText||"No answer")}</p><p><b>Correct answer:</b> ${escapeHtml(correctText)}</p>${q.explanation?`<p class="muted"><b>Explanation:</b> ${escapeHtml(q.explanation)}</p>`:""}</div>`;
-    }).join("");
-    $("question").textContent="Practice complete! 🎉";
-    $("options").innerHTML=`<div class="result card"><h2>${currentScore}/${currentQuestions.length}</h2><p>You answered ${answeredCount} of ${currentQuestions.length} question${currentQuestions.length===1?"":"s"}.</p><p><strong>Answers and explanations are now revealed below.</strong></p><button class="primary" id="resultDash">Back to Dashboard</button><button class="ghost" id="resultTopics" style="margin-left:8px">Choose Another Topic</button></div>${review}`;
-    $("explain").classList.add("hidden");
-    $("next").classList.add("hidden");
-    $("submitQuiz").classList.add("hidden");
-    $("resultDash").onclick=()=>renderDash(false);
-    $("resultTopics").onclick=()=>start(currentSubject.id,currentSubject.name);
-  }catch(e){
-    $("explain").textContent=`Your score is ${currentScore}/${currentQuestions.length}, but it could not be saved: ${e.message}`;
-    $("explain").classList.remove("hidden");
-  }
-}
-$("progress").onclick=renderProgress;
+async function submitQuiz(){const answeredCount=currentAnswers.filter(x=>x!==null).length;if(!answeredCount){$("explain").textContent="Please answer at least one question before submitting.";$("explain").classList.remove("hidden");return;}currentScore=currentQuestions.reduce((s,q,i)=>s+(currentAnswers[i]!==null&&currentAnswers[i]===correctIndex(q)?1:0),0);try{const {error}=await sb.from("quiz_attempts").insert({user_id:user.id,subject:currentSubject.name,score:currentScore,total:currentQuestions.length});if(error)throw error;const review=currentQuestions.map((q,i)=>{const chosen=currentAnswers[i],right=correctIndex(q),status=chosen===null?"⏭️ Not answered":chosen===right?"✅ Correct":"❌ Incorrect";const chosenText=chosen===null?"No answer":q[["option_a","option_b","option_c","option_d"][chosen]];const correctText=q[["option_a","option_b","option_c","option_d"][right]]||"";return `<div class="card" style="margin-top:12px;padding:14px"><strong>${i+1}. ${escapeHtml(q.question)}</strong><p>${status}</p><p><b>Your answer:</b> ${escapeHtml(chosenText||"No answer")}</p><p><b>Correct answer:</b> ${escapeHtml(correctText)}</p>${q.explanation?`<p class="muted"><b>Explanation:</b> ${escapeHtml(q.explanation)}</p>`:""}</div>`;}).join("");$("question").textContent="Practice complete! 🎉";$("options").innerHTML=`<div class="result card"><h2>${currentScore}/${currentQuestions.length}</h2><p>You answered ${answeredCount} of ${currentQuestions.length} question${currentQuestions.length===1?"":"s"}.</p><p><strong>Answers and explanations are now revealed below.</strong></p><button class="primary" id="resultDash">Back to Dashboard</button><button class="ghost" id="resultTopics" style="margin-left:8px">Choose Another Topic</button></div>${review}`;$("explain").classList.add("hidden");$("next").classList.add("hidden");$("submitQuiz").classList.add("hidden");$("resultDash").onclick=()=>renderDash(false);$("resultTopics").onclick=()=>start(currentSubject.id,currentSubject.name);}catch(e){$("explain").textContent=`Your score is ${currentScore}/${currentQuestions.length}, but it could not be saved: ${e.message}`;$("explain").classList.remove("hidden");}}
 $("goDashboard").onclick=()=>renderDash(false);
 $("back").onclick=()=>renderDash(true);
 $("logout").onclick=async()=>{await sb.auth.signOut();user=null;profile=null;classRow=null;$("logout").classList.add("hidden");show("auth");setAuthMode(false);};
