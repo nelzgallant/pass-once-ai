@@ -5,8 +5,8 @@ let signup = false, user = null, profile = null, classRow = null;
 let currentSubject = null, currentTopic = null, currentQuestions = [], currentAnswers = [], currentIndex = 0, currentScore = 0, answered = false;
 
 function show(id){
-  ["auth","setup","subjectSelect","dash","parentDash","quiz","tutorView"].forEach(x => $(x).classList.add("hidden"));
-  $(id).classList.remove("hidden");
+  ["auth","setup","subjectSelect","dash","parentDash","quiz","tutorView","progressDash"].forEach(x => { const el=$(x); if(el) el.classList.add("hidden"); });
+  const target=$(id); if(target) target.classList.remove("hidden");
 }
 function message(text=""){ $("msg").textContent=text; }
 function parentMessage(text=""){ $("parentMsg").textContent=text; }
@@ -136,6 +136,116 @@ async function renderDash(openPractice=true){
   $("practiceSubjects").innerHTML=subjectHtml;
   document.querySelectorAll(".subject").forEach(btn=>btn.onclick=()=>start(Number(btn.dataset.id),btn.dataset.name));
   if(openPractice) show("subjectSelect"); else show("dash");
+}
+
+
+async function renderProgress(){
+  if(!user || profile?.role==="parent")return;
+  ensureProgressView();
+  show("progressDash");
+  $("progressWelcome").textContent=`${profile.full_name}'s Learning Progress 📈`;
+  $("progressMeta").textContent=`${profile.level||"Student"} • ${profile.language||"English"}`;
+  $("progressBody").innerHTML=`<div class="card"><p class="muted">Loading your real learning progress…</p></div>`;
+
+  try{
+    const [{data:attempts,error:attemptsError},{data:lessonRows,error:lessonError}]=await Promise.all([
+      sb.from("quiz_attempts").select("score,total,subject,created_at").eq("user_id",user.id).order("created_at",{ascending:false}),
+      sb.from("student_progress").select("lesson_id,completed,score,updated_at").eq("student_id",user.id)
+    ]);
+    if(attemptsError)throw attemptsError;
+    if(lessonError)throw lessonError;
+
+    const a=attempts||[], lessons=lessonRows||[];
+    const totalQuestions=a.reduce((n,x)=>n+Number(x.total||0),0);
+    const correct=a.reduce((n,x)=>n+Number(x.score||0),0);
+    const accuracy=totalQuestions?Math.round(correct/totalQuestions*100):0;
+    const completedLessons=lessons.filter(x=>x.completed).length;
+    const totalLessonsRecorded=lessons.length;
+
+    const bySubject={};
+    for(const item of a){
+      const subject=item.subject||"Other";
+      if(!bySubject[subject])bySubject[subject]={score:0,total:0,attempts:0,last:item.created_at};
+      bySubject[subject].score+=Number(item.score||0);
+      bySubject[subject].total+=Number(item.total||0);
+      bySubject[subject].attempts++;
+      if(new Date(item.created_at)>new Date(bySubject[subject].last||0))bySubject[subject].last=item.created_at;
+    }
+
+    const subjectRows=Object.entries(bySubject).map(([name,v])=>{
+      const pct=v.total?Math.round(v.score/v.total*100):0;
+      return `<div class="card" style="padding:14px;margin:0 0 10px">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+          <strong>📚 ${escapeHtml(name)}</strong><b>${pct}%</b>
+        </div>
+        <div style="height:9px;background:#e8eef7;border-radius:99px;overflow:hidden;margin:9px 0">
+          <i style="display:block;width:${Math.min(pct,100)}%;height:100%;background:#0b57d0"></i>
+        </div>
+        <small class="muted">${v.score}/${v.total} correct • ${v.attempts} practice${v.attempts===1?"":"s"}</small>
+      </div>`;
+    }).join("");
+
+    const recent=a.slice(0,6).map(x=>`<li><strong>${escapeHtml(x.subject||"Practice")}</strong> — ${Number(x.score||0)}/${Number(x.total||0)}${formatDate(x.created_at)}</li>`).join("");
+    const recentBlock=recent?`<ul style="padding-left:20px;line-height:1.9">${recent}</ul>`:`<p class="muted">No practice attempts yet.</p>`;
+
+    let streak=0;
+    const daySet=new Set(a.map(x=>{
+      const d=new Date(x.created_at);return Number.isNaN(d.getTime())?null:d.toISOString().slice(0,10);
+    }).filter(Boolean));
+    const cursor=new Date();cursor.setHours(0,0,0,0);
+    while(daySet.has(cursor.toISOString().slice(0,10))){
+      streak++;cursor.setDate(cursor.getDate()-1);
+    }
+
+    const encouragement=accuracy>=80
+      ? "Excellent work! Keep building on this momentum. 🌟"
+      : accuracy>=60
+        ? "Good progress! A little more practice can push you even higher. 💪🏾"
+        : totalQuestions
+          ? "Keep practising. Every question is another step toward your goal. 🚀"
+          : "Start your first practice to begin building your progress record. 🚀";
+
+    $("progressBody").innerHTML=`
+      <div class="stats">
+        <div><b>${totalQuestions}</b><small>Questions</small></div>
+        <div><b>${correct}</b><small>Correct</small></div>
+        <div><b>${accuracy}%</b><small>Accuracy</small></div>
+      </div>
+      <div class="stats" style="margin-top:12px">
+        <div><b>${completedLessons}</b><small>Lessons Completed</small></div>
+        <div><b>${a.length}</b><small>Practice Sessions</small></div>
+        <div><b>${streak}</b><small>Day Streak 🔥</small></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>🎯 Your Progress</h3>
+        <p>${encouragement}</p>
+        ${totalLessonsRecorded?`<p class="muted">${completedLessons} of ${totalLessonsRecorded} recorded lesson progress item${totalLessonsRecorded===1?"":"s"} completed.</p>`:`<p class="muted">Lesson completion tracking will appear here as you complete lessons.</p>`}
+      </div>
+      <h3 style="margin-top:20px">📚 Progress by Subject</h3>
+      ${subjectRows||`<div class="card"><p class="muted">Your subject progress will appear after your first practice.</p></div>`}
+      <h3 style="margin-top:20px">🕘 Recent Practice</h3>
+      <div class="card">${recentBlock}</div>`;
+  }catch(e){
+    console.error(e);
+    $("progressBody").innerHTML=`<div class="card"><p>Could not load your progress right now.</p><p class="muted">${escapeHtml(e.message||"Please try again.")}</p></div>`;
+  }
+}
+
+function ensureProgressView(){
+  if($("progressDash"))return;
+  const section=document.createElement("section");
+  section.id="progressDash";
+  section.className="hidden";
+  section.innerHTML=`
+    <button class="back" id="backProgress" type="button">← Dashboard</button>
+    <div class="section">
+      <span class="pill">My Progress</span>
+      <h2 id="progressWelcome"></h2>
+      <p id="progressMeta" class="muted"></p>
+    </div>
+    <div id="progressBody"></div>`;
+  document.body.appendChild(section);
+  $("backProgress").onclick=()=>renderDash(false);
 }
 
 async function generateParentCode(){
@@ -323,6 +433,7 @@ async function submitQuiz(){
     $("explain").classList.remove("hidden");
   }
 }
+$("progress").onclick=renderProgress;
 $("goDashboard").onclick=()=>renderDash(false);
 $("back").onclick=()=>renderDash(true);
 $("logout").onclick=async()=>{await sb.auth.signOut();user=null;profile=null;classRow=null;$("logout").classList.add("hidden");show("auth");setAuthMode(false);};
