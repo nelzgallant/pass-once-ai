@@ -1105,7 +1105,7 @@ async function submitQuiz() {
      .insert({
   user_id: user.id,
   subject: currentSubject.name,
-  topic_id: currentTopic?.id || null,
+  topic_id: Number(currentTopic.id),
   score: currentScore,
   total: currentQuestions.length,
 });
