@@ -549,73 +549,85 @@ async function showStudentProgress() {
 
     /* TOPIC CARDS */
 
-    const topicRows =
-      d.topicStats
-        .map(v => {
-          const pct = v.percentage;
+const topicRows =
+  d.topicStats
+    .map(v => {
+      const pct = v.percentage;
 
-          return `
-            <div
-              class="card"
-              style="padding:14px;margin-top:10px"
-            >
-              <div
-                style="
-                  display:flex;
-                  justify-content:space-between;
-                  gap:10px
-                "
-              >
-                <div>
-                  <strong>${escapeHtml(v.name)}</strong>
-
-                  <div
-                    class="muted"
-                    style="font-size:0.85rem;margin-top:3px"
-                  >
-                    ${escapeHtml(v.subject)}
-                  </div>
-                </div>
-
-                <b>${pct}%</b>
-              </div>
+      return `
+        <div
+          class="card"
+          style="padding:14px;margin-top:10px"
+        >
+          <div
+            style="
+              display:flex;
+              justify-content:space-between;
+              gap:10px
+            "
+          >
+            <div>
+              <strong>${escapeHtml(v.name)}</strong>
 
               <div
-                style="
-                  height:9px;
-                  background:#e8eef7;
-                  border-radius:99px;
-                  overflow:hidden;
-                  margin:8px 0
-                "
+                class="muted"
+                style="font-size:0.85rem;margin-top:3px"
               >
-                <i
-                  style="
-                    display:block;
-                    width:${Math.min(pct,100)}%;
-                    height:100%;
-                    background:${pct < 70 ? "#f4b400" : "#2e7d32"};
-                  "
-                ></i>
+                ${escapeHtml(v.subject)}
               </div>
-
-              <span class="muted">
-                ${v.attempts}
-                practice session${v.attempts === 1 ? "" : "s"}
-                • ${v.score}/${v.total} correct
-              </span>
             </div>
-          `;
-        })
-        .join("") ||
-      `
-        <div class="card" style="margin-top:10px">
-          <p class="muted">
-            Topic-level progress will appear here after you
-            practise more topics.
-          </p>
+
+            <b>${pct}%</b>
+          </div>
+
+          <div
+            style="
+              height:9px;
+              background:#e8eef7;
+              border-radius:99px;
+              overflow:hidden;
+              margin:8px 0
+            "
+          >
+            <i
+              style="
+                display:block;
+                width:${Math.min(pct,100)}%;
+                height:100%;
+                background:${pct < 70 ? "#f4b400" : "#2e7d32"};
+              "
+            ></i>
+          </div>
+
+          <span class="muted">
+            ${v.attempts}
+            practice session${v.attempts === 1 ? "" : "s"}
+            • ${v.score}/${v.total} correct
+          </span>
+
+          <div style="margin-top:12px">
+            <button
+              class="primary practice-again-btn"
+              type="button"
+              data-topic-id="${v.id}"
+              data-subject="${escapeHtml(v.subject)}"
+              data-topic-name="${escapeHtml(v.name)}"
+            >
+              🎯 Practice Again
+            </button>
+          </div>
         </div>
       `;
+    })
+    .join("") ||
+  `
+    <div class="card" style="margin-top:10px">
+      <p class="muted">
+        Topic-level progress will appear here after you
+        practise more topics.
+      </p>
+    </div>
+  `;
 
     /* RECENT ACTIVITY */
 
