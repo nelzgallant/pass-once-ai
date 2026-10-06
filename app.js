@@ -811,7 +811,21 @@ const topicRows =
     $("closeProgress").onclick = () => {
       box.classList.add("hidden");
     };
+document.querySelectorAll(".practice-again-btn").forEach(btn => {
+  btn.onclick = async () => {
+    const topicId = Number(btn.dataset.topicId);
+    const subjectName = btn.dataset.subject;
+    const topicName = btn.dataset.topicName;
 
+    box.classList.add("hidden");
+
+    await startTopic(
+      topicId,
+      subjectName,
+      topicName
+    );
+  };
+});
   } catch (e) {
     const box = $("progressPanel");
 
