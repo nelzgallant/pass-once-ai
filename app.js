@@ -1122,13 +1122,19 @@ async function startTopic(topicId, subjectName, topicName) {
   currentIndex = 0;
   currentScore = 0;
   answered = false;
+
+  // Open the quiz screen
+  show("quiz");
+
   $("subject").textContent = subjectName + " — " + topicName;
   $("question").textContent = "Loading questions…";
   $("options").innerHTML = "";
   $("explain").classList.add("hidden");
   $("next").classList.add("hidden");
+
   ensureSubmitButton();
   $("submitQuiz").classList.add("hidden");
+
   try {
     const { data, error } = await sb
       .from("questions")
@@ -1138,21 +1144,36 @@ async function startTopic(topicId, subjectName, topicName) {
       .eq("language_code", "en")
       .eq("topic_id", topicId)
       .order("id");
+
     if (error) throw error;
+
     currentQuestions = data || [];
+
     if (!currentQuestions.length) {
-      $("question").textContent = "No questions available for this topic yet.";
-      $(
-        "options"
-      ).innerHTML = `<button class="ghost" type="button" id="backToTopics">← Back to Topics</button>`;
-      $("backToTopics").onclick = () => start(currentSubject.id, subjectName);
+      $("question").textContent =
+        "No questions available for this topic yet.";
+
+      $("options").innerHTML = `
+        <button class="ghost" type="button" id="backToTopics">
+          ← Back to Topics
+        </button>
+      `;
+
+      $("backToTopics").onclick = () =>
+        start(currentSubject.id, subjectName);
+
       return;
     }
+
     currentAnswers = new Array(currentQuestions.length).fill(null);
+
     renderQ();
+
   } catch (e) {
     console.error(e);
+
     $("question").textContent = "Could not load questions.";
+
     $("explain").textContent = e.message;
     $("explain").classList.remove("hidden");
   }
