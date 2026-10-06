@@ -210,7 +210,7 @@ async function findClass() {
 async function getStudentProgressData() {
   const { data: attempts, error } = await sb
     .from("quiz_attempts")
-    .select("score,total,subject,created_at")
+    .select("score,total,subject,topic_id,created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -239,6 +239,10 @@ async function getStudentProgressData() {
     .eq("completed", true);
 
   if (progressError) throw progressError;
+
+  /* --------------------------------
+     SUBJECT PROGRESS
+  -------------------------------- */
 
   const bySubject = {};
 
@@ -289,17 +293,98 @@ async function getStudentProgressData() {
         )[0]
       : null;
 
-  /*
-   * Learning streak:
-   * Count consecutive calendar days on which the
-   * student completed at least one practice attempt.
-   */
+  /* --------------------------------
+     TOPIC PROGRESS
+  -------------------------------- */
+
+  const topicIds = [
+    ...new Set(
+      a
+        .filter(x => x.topic_id !== null)
+        .map(x => Number(x.topic_id))
+    )
+  ];
+
+  let topicRows = [];
+
+  if (topicIds.length) {
+    const { data: topics, error: topicError } = await sb
+      .from("topics")
+      .select("id,name")
+      .in("id", topicIds);
+
+    if (topicError) throw topicError;
+
+    topicRows = topics || [];
+  }
+
+  const topicNames = {};
+
+  for (const topic of topicRows) {
+    topicNames[Number(topic.id)] = topic.name;
+  }
+
+  const byTopic = {};
+
+  for (const item of a) {
+    if (item.topic_id === null) continue;
+
+    const topicId = Number(item.topic_id);
+
+    if (!byTopic[topicId]) {
+      byTopic[topicId] = {
+        id: topicId,
+        name: topicNames[topicId] || `Topic ${topicId}`,
+        subject: item.subject || "Other",
+        score: 0,
+        total: 0,
+        attempts: 0,
+        last: item.created_at
+      };
+    }
+
+    byTopic[topicId].score += Number(item.score || 0);
+    byTopic[topicId].total += Number(item.total || 0);
+    byTopic[topicId].attempts++;
+
+    if (
+      new Date(item.created_at) >
+      new Date(byTopic[topicId].last || 0)
+    ) {
+      byTopic[topicId].last = item.created_at;
+    }
+  }
+
+  const topicStats = Object.values(byTopic)
+    .map(v => ({
+      ...v,
+      percentage: v.total
+        ? Math.round((v.score / v.total) * 100)
+        : 0
+    }))
+    .sort((a, b) => b.percentage - a.percentage);
+
+  const bestTopic =
+    topicStats.length ? topicStats[0] : null;
+
+  const attentionTopic =
+    topicStats.length
+      ? [...topicStats].sort(
+          (a, b) => a.percentage - b.percentage
+        )[0]
+      : null;
+
+  /* --------------------------------
+     LEARNING STREAK
+  -------------------------------- */
+
   const practiceDays = [
     ...new Set(
       a
-        .filter((x) => x.created_at)
-        .map((x) => {
+        .filter(x => x.created_at)
+        .map(x => {
           const d = new Date(x.created_at);
+
           return `${d.getFullYear()}-${String(
             d.getMonth() + 1
           ).padStart(2, "0")}-${String(
@@ -313,21 +398,19 @@ async function getStudentProgressData() {
 
   if (practiceDays.length) {
     const dates = practiceDays
-      .map((x) => new Date(x + "T00:00:00"))
+      .map(x => new Date(x + "T00:00:00"))
       .sort((a, b) => b - a);
 
     const today = new Date();
+
     today.setHours(0, 0, 0, 0);
 
     const latest = dates[0];
+
     const differenceFromToday = Math.floor(
       (today - latest) / 86400000
     );
 
-    /*
-     * If the last practice was today or yesterday,
-     * count the current streak.
-     */
     if (differenceFromToday <= 1) {
       streak = 1;
 
@@ -345,20 +428,28 @@ async function getStudentProgressData() {
     }
   }
 
+  /* --------------------------------
+     SMART RECOMMENDATION
+  -------------------------------- */
+
   let recommendation =
     "Start a practice session to build your learning record.";
 
-  if (attentionSubject) {
-    if (attentionSubject.percentage < 70) {
-      recommendation =
-        `Focus on ${attentionSubject.name}. Your current score is ${attentionSubject.percentage}%. A little more practice here can make a big difference.`;
-    } else if (attentionSubject.percentage < 85) {
-      recommendation =
-        `Keep practising ${attentionSubject.name}. You are at ${attentionSubject.percentage}% and can push this subject even higher.`;
-    } else {
-      recommendation =
-        `Great work across your subjects! Keep practising ${attentionSubject.name} to maintain your progress.`;
-    }
+  if (attentionTopic && attentionTopic.percentage < 70) {
+    recommendation =
+      `Focus on ${attentionTopic.name}. Your current score is ${attentionTopic.percentage}%. Practising this topic can make a big difference.`;
+  } else if (attentionSubject && attentionSubject.percentage < 70) {
+    recommendation =
+      `Focus on ${attentionSubject.name}. Your current score is ${attentionSubject.percentage}%. A little more practice can make a big difference.`;
+  } else if (attentionTopic && attentionTopic.percentage < 85) {
+    recommendation =
+      `Keep practising ${attentionTopic.name}. You are at ${attentionTopic.percentage}% and can push this topic even higher.`;
+  } else if (attentionSubject && attentionSubject.percentage < 85) {
+    recommendation =
+      `Keep practising ${attentionSubject.name}. You are at ${attentionSubject.percentage}% and can push this subject even higher.`;
+  } else if (bestTopic) {
+    recommendation =
+      `Excellent work! You are performing strongly. Keep practising ${bestTopic.name} to maintain your progress.`;
   }
 
   return {
@@ -367,10 +458,17 @@ async function getStudentProgressData() {
     correct,
     accuracy,
     lessons: progress?.length || 0,
+
     bySubject,
     subjectStats,
     bestSubject,
     attentionSubject,
+
+    byTopic,
+    topicStats,
+    bestTopic,
+    attentionTopic,
+
     streak,
     recommendation
   };
