@@ -819,11 +819,17 @@ document.querySelectorAll(".practice-again-btn").forEach(btn => {
 
     box.classList.add("hidden");
 
-    await startTopic(
-      topicId,
-      subjectName,
-      topicName
-    );
+    try {
+      await startTopic(
+        topicId,
+        subjectName,
+        topicName
+      );
+
+      $("quiz").classList.remove("hidden");
+    } catch (e) {
+      console.error("Practice Again error:", e);
+    }
   };
 });
   }   catch (e) {
