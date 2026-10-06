@@ -1117,6 +1117,11 @@ async function getPracticeTopics(subjectId, classId) {
 }
 async function startTopic(topicId, subjectName, topicName) {
   currentTopic = { id: topicId, name: topicName };
+
+  currentSubject = {
+    id: currentSubject?.id || null,
+    name: subjectName
+  };
   currentQuestions = [];
   currentAnswers = [];
   currentIndex = 0;
