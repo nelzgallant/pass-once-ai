@@ -213,26 +213,154 @@ async function getStudentProgressData() {
     .select("score,total,subject,created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
+
   if (error) throw error;
+
   const a = attempts || [];
-  const attempted = a.reduce((n, x) => n + Number(x.total || 0), 0);
-  const correct = a.reduce((n, x) => n + Number(x.score || 0), 0);
-  const accuracy = attempted ? Math.round((correct / attempted) * 100) : 0;
+
+  const attempted = a.reduce(
+    (n, x) => n + Number(x.total || 0),
+    0
+  );
+
+  const correct = a.reduce(
+    (n, x) => n + Number(x.score || 0),
+    0
+  );
+
+  const accuracy = attempted
+    ? Math.round((correct / attempted) * 100)
+    : 0;
+
   const { data: progress, error: progressError } = await sb
     .from("student_progress")
     .select("id,completed")
     .eq("student_id", user.id)
     .eq("completed", true);
+
   if (progressError) throw progressError;
+
   const bySubject = {};
+
   for (const item of a) {
     const subject = item.subject || "Other";
-    if (!bySubject[subject])
-      bySubject[subject] = { score: 0, total: 0, attempts: 0 };
+
+    if (!bySubject[subject]) {
+      bySubject[subject] = {
+        score: 0,
+        total: 0,
+        attempts: 0,
+        last: item.created_at
+      };
+    }
+
     bySubject[subject].score += Number(item.score || 0);
     bySubject[subject].total += Number(item.total || 0);
     bySubject[subject].attempts++;
+
+    if (
+      new Date(item.created_at) >
+      new Date(bySubject[subject].last || 0)
+    ) {
+      bySubject[subject].last = item.created_at;
+    }
   }
+
+  const subjectStats = Object.entries(bySubject)
+    .map(([name, v]) => ({
+      name,
+      score: v.score,
+      total: v.total,
+      attempts: v.attempts,
+      percentage: v.total
+        ? Math.round((v.score / v.total) * 100)
+        : 0,
+      last: v.last
+    }))
+    .sort((a, b) => b.percentage - a.percentage);
+
+  const bestSubject =
+    subjectStats.length ? subjectStats[0] : null;
+
+  const attentionSubject =
+    subjectStats.length
+      ? [...subjectStats].sort(
+          (a, b) => a.percentage - b.percentage
+        )[0]
+      : null;
+
+  /*
+   * Learning streak:
+   * Count consecutive calendar days on which the
+   * student completed at least one practice attempt.
+   */
+  const practiceDays = [
+    ...new Set(
+      a
+        .filter((x) => x.created_at)
+        .map((x) => {
+          const d = new Date(x.created_at);
+          return `${d.getFullYear()}-${String(
+            d.getMonth() + 1
+          ).padStart(2, "0")}-${String(
+            d.getDate()
+          ).padStart(2, "0")}`;
+        })
+    )
+  ];
+
+  let streak = 0;
+
+  if (practiceDays.length) {
+    const dates = practiceDays
+      .map((x) => new Date(x + "T00:00:00"))
+      .sort((a, b) => b - a);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const latest = dates[0];
+    const differenceFromToday = Math.floor(
+      (today - latest) / 86400000
+    );
+
+    /*
+     * If the last practice was today or yesterday,
+     * count the current streak.
+     */
+    if (differenceFromToday <= 1) {
+      streak = 1;
+
+      for (let i = 1; i < dates.length; i++) {
+        const difference = Math.round(
+          (dates[i - 1] - dates[i]) / 86400000
+        );
+
+        if (difference === 1) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
+  let recommendation =
+    "Start a practice session to build your learning record.";
+
+  if (attentionSubject) {
+    if (attentionSubject.percentage < 70) {
+      recommendation =
+        `Focus on ${attentionSubject.name}. Your current score is ${attentionSubject.percentage}%. A little more practice here can make a big difference.`;
+    } else if (attentionSubject.percentage < 85) {
+      recommendation =
+        `Keep practising ${attentionSubject.name}. You are at ${attentionSubject.percentage}% and can push this subject even higher.`;
+    } else {
+      recommendation =
+        `Great work across your subjects! Keep practising ${attentionSubject.name} to maintain your progress.`;
+    }
+  }
+
   return {
     attempts: a,
     attempted,
@@ -240,49 +368,309 @@ async function getStudentProgressData() {
     accuracy,
     lessons: progress?.length || 0,
     bySubject,
+    subjectStats,
+    bestSubject,
+    attentionSubject,
+    streak,
+    recommendation
   };
 }
-
 async function showStudentProgress() {
   try {
     const box = $("progressPanel");
+
     if (!box) return;
-    box.innerHTML = `<div class="card"><p>Loading your progress…</p></div>`;
+
+    box.innerHTML =
+      `<div class="card"><p>Loading your progress…</p></div>`;
+
     box.classList.remove("hidden");
+
     const d = await getStudentProgressData();
+
     const rows =
       Object.entries(d.bySubject)
         .map(([name, v]) => {
-          const pct = v.total ? Math.round((v.score / v.total) * 100) : 0;
-          return `<div class="card" style="padding:14px;margin-top:10px"><div style="display:flex;justify-content:space-between;gap:10px"><strong>${escapeHtml( name )}</strong><b>${pct}%</b></div><div style="height:9px;background:#e8eef7;border-radius:99px;overflow:hidden;margin:8px 0"><i style="display:block;width:${Math.min( pct, 100 )}%;height:100%;background:${ pct < 70 ? "#f4b400" : "#2e7d32" }"></i></div><span class="muted">${v.attempts} practice session${ v.attempts === 1 ? "" : "s" } • ${v.score}/${v.total} correct</span></div>`;
+          const pct = v.total
+            ? Math.round((v.score / v.total) * 100)
+            : 0;
+
+          return `
+            <div class="card"
+              style="padding:14px;margin-top:10px">
+
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:10px">
+
+                <strong>${escapeHtml(name)}</strong>
+                <b>${pct}%</b>
+
+              </div>
+
+              <div style="
+                height:9px;
+                background:#e8eef7;
+                border-radius:99px;
+                overflow:hidden;
+                margin:8px 0">
+
+                <i style="
+                  display:block;
+                  width:${Math.min(pct,100)}%;
+                  height:100%;
+                  background:${
+                    pct < 70
+                      ? "#f4b400"
+                      : "#2e7d32"
+                  }">
+                </i>
+
+              </div>
+
+              <span class="muted">
+                ${v.attempts}
+                practice session${
+                  v.attempts === 1 ? "" : "s"
+                }
+                • ${v.score}/${v.total} correct
+              </span>
+
+            </div>
+          `;
         })
         .join("") ||
-      `<p class="muted">No practice recorded yet. Start a topic to begin building your progress.</p>`;
+      `
+        <p class="muted">
+          No practice recorded yet.
+          Start a topic to begin building your progress.
+        </p>
+      `;
+
     const recent =
       d.attempts
         .slice(0, 5)
         .map(
           (x) =>
-            `<li><strong>${escapeHtml( x.subject || "Practice" )}</strong> — ${Number(x.score || 0)}/${Number(x.total || 0)}</li>`
+            `
+            <li>
+              <strong>
+                ${escapeHtml(
+                  x.subject || "Practice"
+                )}
+              </strong>
+              — ${Number(x.score || 0)}/${Number(
+              x.total || 0
+            )}
+              ${formatDate(x.created_at)}
+            </li>
+            `
         )
-        .join("") || `<li>No recent practice yet.</li>`;
+        .join("") ||
+      `<li>No recent practice yet.</li>`;
+
     const message =
       d.accuracy >= 80
         ? "🌟 Excellent work! Keep it up."
         : d.accuracy >= 60
         ? "💪 Good progress! Keep practising to improve."
         : "🚀 Keep going! Focus on the subjects that need more practice.";
-    box.innerHTML = `<div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><h3 style="margin:0">📈 My Learning Progress</h3><p class="muted" style="margin:4px 0 0">Your real practice performance, updated from your activity.</p></div><button class="ghost" type="button" id="closeProgress">Back</button></div><div class="stats" style="margin-top:14px"><div><b>${d.attempted}</b><small>Questions</small></div><div><b>${d.correct}</b><small>Correct</small></div><div><b>${d.accuracy}%</b><small>Accuracy</small></div><div><b>${d.lessons}</b><small>Lessons done</small></div></div><p style="margin-top:16px">${message}</p><h4>📚 Subject progress</h4>${rows}<h4 style="margin-top:18px">🕘 Recent activity</h4><ul style="padding-left:20px;line-height:1.9">${recent}</ul></div>`;
+
+    const bestSubjectBlock = d.bestSubject
+      ? `
+        <div class="card"
+          style="
+            padding:14px;
+            margin-top:10px;
+            border-left:5px solid #2e7d32">
+
+          <strong>🏆 Best subject</strong>
+
+          <h3 style="margin:6px 0">
+            ${escapeHtml(d.bestSubject.name)}
+          </h3>
+
+          <p class="muted" style="margin:0">
+            ${d.bestSubject.percentage}%
+            • ${d.bestSubject.score}/${
+          d.bestSubject.total
+        } correct
+          </p>
+
+        </div>
+      `
+      : "";
+
+    const attentionBlock = d.attentionSubject
+      ? `
+        <div class="card"
+          style="
+            padding:14px;
+            margin-top:10px;
+            border-left:5px solid #f4b400">
+
+          <strong>⚠️ Needs more attention</strong>
+
+          <h3 style="margin:6px 0">
+            ${escapeHtml(
+              d.attentionSubject.name
+            )}
+          </h3>
+
+          <p class="muted" style="margin:0">
+            Current performance:
+            ${d.attentionSubject.percentage}%
+          </p>
+
+        </div>
+      `
+      : "";
+
+    box.innerHTML = `
+      <div class="card" style="margin-top:14px">
+
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:10px">
+
+          <div>
+            <h3 style="margin:0">
+              📈 My Learning Progress
+            </h3>
+
+            <p class="muted"
+              style="margin:4px 0 0">
+              Your real practice performance,
+              updated from your activity.
+            </p>
+          </div>
+
+          <button
+            class="ghost"
+            type="button"
+            id="closeProgress">
+            Back
+          </button>
+
+        </div>
+
+        <div class="stats"
+          style="margin-top:14px">
+
+          <div>
+            <b>${d.attempted}</b>
+            <small>Questions</small>
+          </div>
+
+          <div>
+            <b>${d.correct}</b>
+            <small>Correct</small>
+          </div>
+
+          <div>
+            <b>${d.accuracy}%</b>
+            <small>Accuracy</small>
+          </div>
+
+          <div>
+            <b>${d.lessons}</b>
+            <small>Lessons done</small>
+          </div>
+
+        </div>
+
+        <div class="card"
+          style="
+            margin-top:14px;
+            padding:14px;
+            background:#f8fbff">
+
+          <strong>🔥 Learning streak</strong>
+
+          <h2 style="margin:5px 0">
+            ${d.streak} day${
+      d.streak === 1 ? "" : "s"
+    }
+          </h2>
+
+          <span class="muted">
+            ${
+              d.streak
+                ? "Keep practising to maintain your streak!"
+                : "Complete a practice session today to start your streak."
+            }
+          </span>
+
+        </div>
+
+        <p style="margin-top:16px">
+          ${message}
+        </p>
+
+        ${bestSubjectBlock}
+
+        ${attentionBlock}
+
+        <div class="card"
+          style="
+            margin-top:10px;
+            padding:14px;
+            border-left:5px solid #0b57d0">
+
+          <strong>🎯 Your personalised recommendation</strong>
+
+          <p style="margin:8px 0 0">
+            ${escapeHtml(d.recommendation)}
+          </p>
+
+        </div>
+
+        <h4 style="margin-top:20px">
+          📚 Subject progress
+        </h4>
+
+        ${rows}
+
+        <h4 style="margin-top:18px">
+          🕘 Recent activity
+        </h4>
+
+        <ul style="
+          padding-left:20px;
+          line-height:1.9">
+
+          ${recent}
+
+        </ul>
+
+      </div>
+    `;
+
     $("closeProgress").onclick = () => {
       box.classList.add("hidden");
     };
+
   } catch (e) {
+
     const box = $("progressPanel");
-    if (box)
-      box.innerHTML = `<div class="card"><p>Could not load progress: ${escapeHtml( e.message || "Please try again." )}</p></div>`;
+
+    if (box) {
+      box.innerHTML = `
+        <div class="card">
+          <p>
+            Could not load progress:
+            ${escapeHtml(
+              e.message || "Please try again."
+            )}
+          </p>
+        </div>
+      `;
+    }
   }
 }
-
 async function renderDash(openPractice = true) {
   $("welcome").textContent = `Welcome, ${profile.full_name} 👋🏾`;
   $(
