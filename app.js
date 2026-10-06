@@ -479,62 +479,63 @@ async function showStudentProgress() {
 
     if (!box) return;
 
-    box.innerHTML =
-      `<div class="card"><p>Loading your progress…</p></div>`;
+    box.innerHTML = `
+      <div class="card">
+        <p>Loading your progress…</p>
+      </div>
+    `;
 
     box.classList.remove("hidden");
 
     const d = await getStudentProgressData();
 
-    const rows =
-      Object.entries(d.bySubject)
-        .map(([name, v]) => {
-          const pct = v.total
-            ? Math.round((v.score / v.total) * 100)
-            : 0;
+    /* SUBJECT CARDS */
+
+    const subjectRows =
+      d.subjectStats
+        .map(v => {
+          const pct = v.percentage;
 
           return `
-            <div class="card"
-              style="padding:14px;margin-top:10px">
-
-              <div style="
-                display:flex;
-                justify-content:space-between;
-                gap:10px">
-
-                <strong>${escapeHtml(name)}</strong>
+            <div
+              class="card"
+              style="padding:14px;margin-top:10px"
+            >
+              <div
+                style="
+                  display:flex;
+                  justify-content:space-between;
+                  gap:10px
+                "
+              >
+                <strong>${escapeHtml(v.name)}</strong>
                 <b>${pct}%</b>
-
               </div>
 
-              <div style="
-                height:9px;
-                background:#e8eef7;
-                border-radius:99px;
-                overflow:hidden;
-                margin:8px 0">
-
-                <i style="
-                  display:block;
-                  width:${Math.min(pct,100)}%;
-                  height:100%;
-                  background:${
-                    pct < 70
-                      ? "#f4b400"
-                      : "#2e7d32"
-                  }">
-                </i>
-
+              <div
+                style="
+                  height:9px;
+                  background:#e8eef7;
+                  border-radius:99px;
+                  overflow:hidden;
+                  margin:8px 0
+                "
+              >
+                <i
+                  style="
+                    display:block;
+                    width:${Math.min(pct,100)}%;
+                    height:100%;
+                    background:${pct < 70 ? "#f4b400" : "#2e7d32"};
+                  "
+                ></i>
               </div>
 
               <span class="muted">
                 ${v.attempts}
-                practice session${
-                  v.attempts === 1 ? "" : "s"
-                }
+                practice session${v.attempts === 1 ? "" : "s"}
                 • ${v.score}/${v.total} correct
               </span>
-
             </div>
           `;
         })
@@ -546,25 +547,98 @@ async function showStudentProgress() {
         </p>
       `;
 
+    /* TOPIC CARDS */
+
+    const topicRows =
+      d.topicStats
+        .map(v => {
+          const pct = v.percentage;
+
+          return `
+            <div
+              class="card"
+              style="padding:14px;margin-top:10px"
+            >
+              <div
+                style="
+                  display:flex;
+                  justify-content:space-between;
+                  gap:10px
+                "
+              >
+                <div>
+                  <strong>${escapeHtml(v.name)}</strong>
+
+                  <div
+                    class="muted"
+                    style="font-size:0.85rem;margin-top:3px"
+                  >
+                    ${escapeHtml(v.subject)}
+                  </div>
+                </div>
+
+                <b>${pct}%</b>
+              </div>
+
+              <div
+                style="
+                  height:9px;
+                  background:#e8eef7;
+                  border-radius:99px;
+                  overflow:hidden;
+                  margin:8px 0
+                "
+              >
+                <i
+                  style="
+                    display:block;
+                    width:${Math.min(pct,100)}%;
+                    height:100%;
+                    background:${pct < 70 ? "#f4b400" : "#2e7d32"};
+                  "
+                ></i>
+              </div>
+
+              <span class="muted">
+                ${v.attempts}
+                practice session${v.attempts === 1 ? "" : "s"}
+                • ${v.score}/${v.total} correct
+              </span>
+            </div>
+          `;
+        })
+        .join("") ||
+      `
+        <div class="card" style="margin-top:10px">
+          <p class="muted">
+            Topic-level progress will appear here after you
+            practise more topics.
+          </p>
+        </div>
+      `;
+
+    /* RECENT ACTIVITY */
+
     const recent =
       d.attempts
         .slice(0, 5)
-        .map(
-          (x) =>
-            `
+        .map(x => {
+          const topicName =
+            x.topic_id !== null
+              ? (d.byTopic[Number(x.topic_id)]?.name ||
+                 `Topic ${x.topic_id}`)
+              : "Previous practice";
+
+          return `
             <li>
               <strong>
-                ${escapeHtml(
-                  x.subject || "Practice"
-                )}
+                ${escapeHtml(x.subject || "Practice")}
               </strong>
-              — ${Number(x.score || 0)}/${Number(
-              x.total || 0
-            )}
-              ${formatDate(x.created_at)}
+              — ${escapeHtml(topicName)}
+              — ${Number(x.score || 0)}/${Number(x.total || 0)}
             </li>
-            `
-        )
+          `;
+        })
         .join("") ||
       `<li>No recent practice yet.</li>`;
 
@@ -573,74 +647,41 @@ async function showStudentProgress() {
         ? "🌟 Excellent work! Keep it up."
         : d.accuracy >= 60
         ? "💪 Good progress! Keep practising to improve."
-        : "🚀 Keep going! Focus on the subjects that need more practice.";
+        : "🚀 Keep going! Focus on the areas that need more practice.";
 
-    const bestSubjectBlock = d.bestSubject
-      ? `
-        <div class="card"
-          style="
-            padding:14px;
-            margin-top:10px;
-            border-left:5px solid #2e7d32">
+    /* BEST + ATTENTION */
 
-          <strong>🏆 Best subject</strong>
+    const bestTopicText = d.bestTopic
+      ? `${escapeHtml(d.bestTopic.name)} — ${d.bestTopic.percentage}%`
+      : "Not enough topic data yet.";
 
-          <h3 style="margin:6px 0">
-            ${escapeHtml(d.bestSubject.name)}
-          </h3>
-
-          <p class="muted" style="margin:0">
-            ${d.bestSubject.percentage}%
-            • ${d.bestSubject.score}/${
-          d.bestSubject.total
-        } correct
-          </p>
-
-        </div>
-      `
-      : "";
-
-    const attentionBlock = d.attentionSubject
-      ? `
-        <div class="card"
-          style="
-            padding:14px;
-            margin-top:10px;
-            border-left:5px solid #f4b400">
-
-          <strong>⚠️ Needs more attention</strong>
-
-          <h3 style="margin:6px 0">
-            ${escapeHtml(
-              d.attentionSubject.name
-            )}
-          </h3>
-
-          <p class="muted" style="margin:0">
-            Current performance:
-            ${d.attentionSubject.percentage}%
-          </p>
-
-        </div>
-      `
-      : "";
+    const attentionTopicText = d.attentionTopic
+      ? `${escapeHtml(d.attentionTopic.name)} — ${d.attentionTopic.percentage}%`
+      : "Not enough topic data yet.";
 
     box.innerHTML = `
-      <div class="card" style="margin-top:14px">
+      <div
+        class="card"
+        style="margin-top:14px"
+      >
 
-        <div style="
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:10px">
-
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:10px
+          "
+        >
           <div>
             <h3 style="margin:0">
               📈 My Learning Progress
             </h3>
 
-            <p class="muted"
-              style="margin:4px 0 0">
+            <p
+              class="muted"
+              style="margin:4px 0 0"
+            >
               Your real practice performance,
               updated from your activity.
             </p>
@@ -649,15 +690,16 @@ async function showStudentProgress() {
           <button
             class="ghost"
             type="button"
-            id="closeProgress">
+            id="closeProgress"
+          >
             Back
           </button>
-
         </div>
 
-        <div class="stats"
-          style="margin-top:14px">
-
+        <div
+          class="stats"
+          style="margin-top:14px"
+        >
           <div>
             <b>${d.attempted}</b>
             <small>Questions</small>
@@ -677,71 +719,78 @@ async function showStudentProgress() {
             <b>${d.lessons}</b>
             <small>Lessons done</small>
           </div>
-
         </div>
 
-        <div class="card"
-          style="
-            margin-top:14px;
-            padding:14px;
-            background:#f8fbff">
+        <div
+          class="stats"
+          style="margin-top:10px"
+        >
+          <div>
+            <b>🔥 ${d.streak}</b>
+            <small>Day streak</small>
+          </div>
 
-          <strong>🔥 Learning streak</strong>
+          <div>
+            <b>🏆</b>
+            <small>Best topic</small>
+            <span class="muted">
+              ${bestTopicText}
+            </span>
+          </div>
 
-          <h2 style="margin:5px 0">
-            ${d.streak} day${
-      d.streak === 1 ? "" : "s"
-    }
-          </h2>
-
-          <span class="muted">
-            ${
-              d.streak
-                ? "Keep practising to maintain your streak!"
-                : "Complete a practice session today to start your streak."
-            }
-          </span>
-
+          <div>
+            <b>⚠️</b>
+            <small>Needs attention</small>
+            <span class="muted">
+              ${attentionTopicText}
+            </span>
+          </div>
         </div>
 
         <p style="margin-top:16px">
           ${message}
         </p>
 
-        ${bestSubjectBlock}
-
-        ${attentionBlock}
-
-        <div class="card"
+        <div
+          class="card"
           style="
-            margin-top:10px;
             padding:14px;
-            border-left:5px solid #0b57d0">
+            margin-top:12px;
+            background:#f7fbff
+          "
+        >
+          <strong>🎯 Personalised Recommendation</strong>
 
-          <strong>🎯 Your personalised recommendation</strong>
-
-          <p style="margin:8px 0 0">
+          <p
+            style="margin:7px 0 0"
+          >
             ${escapeHtml(d.recommendation)}
           </p>
-
         </div>
 
         <h4 style="margin-top:20px">
-          📚 Subject progress
+          📚 Subject Progress
         </h4>
 
-        ${rows}
+        ${subjectRows}
 
-        <h4 style="margin-top:18px">
-          🕘 Recent activity
+        <h4 style="margin-top:22px">
+          🎯 Topic-Level Progress
         </h4>
 
-        <ul style="
-          padding-left:20px;
-          line-height:1.9">
+        ${topicRows}
 
+        <h4 style="margin-top:22px">
+          🕘 Recent Activity
+        </h4>
+
+        <ul
+          style="
+            padding-left:20px;
+            line-height:1.9
+          "
+        >
           ${recent}
-
         </ul>
 
       </div>
@@ -752,7 +801,6 @@ async function showStudentProgress() {
     };
 
   } catch (e) {
-
     const box = $("progressPanel");
 
     if (box) {
