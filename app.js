@@ -826,7 +826,7 @@ document.querySelectorAll(".practice-again-btn").forEach(btn => {
     );
   };
 });
-  } catch (e) {
+    catch (e) {
     const box = $("progressPanel");
 
     if (box) {
