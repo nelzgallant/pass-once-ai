@@ -1102,12 +1102,13 @@ async function submitQuiz() {
   try {
     const { error } = await sb
       .from("quiz_attempts")
-      .insert({
-        user_id: user.id,
-        subject: currentSubject.name,
-        score: currentScore,
-        total: currentQuestions.length,
-      });
+     .insert({
+  user_id: user.id,
+  subject: currentSubject.name,
+  topic_id: currentTopic?.id || null,
+  score: currentScore,
+  total: currentQuestions.length,
+});
     if (error) throw error;
     const review = currentQuestions
       .map((q, i) => {
