@@ -1786,13 +1786,96 @@ async function startLesson(topicId, subjectName, topicName) {
     }
 
     /*
+      Load this student's completed lessons
+      for the current topic.
+    */
+    let completedLessonIds = new Set();
+
+    if (user) {
+      const lessonIds = lessons.map(
+        lesson => Number(lesson.id)
+      );
+
+      const { data: progressRows, error: progressError } =
+        await sb
+          .from("student_progress")
+          .select("lesson_id,completed")
+          .eq("student_id", user.id)
+          .in("lesson_id", lessonIds);
+
+      if (progressError) throw progressError;
+
+      (progressRows || []).forEach(row => {
+        if (row.completed) {
+          completedLessonIds.add(
+            Number(row.lesson_id)
+          );
+        }
+      });
+    }
+
+    const completedCount =
+      completedLessonIds.size;
+
+    const totalLessons =
+      lessons.length;
+
+    const progressPercent =
+      totalLessons > 0
+        ? Math.round(
+            (completedCount / totalLessons) * 100
+          )
+        : 0;
+
+    /*
       If there is more than one lesson,
-      show the student a lesson list first.
+      show the lesson list with progress.
     */
     if (lessons.length > 1) {
-      $("lessonTitle").textContent = "📚 Lessons";
+      $("lessonTitle").textContent =
+        "📚 Lessons";
 
       $("lessonContent").innerHTML = `
+        <div class="card" style="margin-bottom:18px;">
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:12px;
+            margin-bottom:10px;
+          ">
+            <strong>📈 Topic Progress</strong>
+
+            <strong>
+              ${completedCount} / ${totalLessons}
+            </strong>
+          </div>
+
+          <div style="
+            width:100%;
+            height:10px;
+            background:#e8eef7;
+            border-radius:999px;
+            overflow:hidden;
+          ">
+            <div style="
+              width:${progressPercent}%;
+              height:100%;
+              background:linear-gradient(
+                90deg,
+                #0b57d0,
+                #16a34a
+              );
+              border-radius:999px;
+              transition:width .3s ease;
+            "></div>
+          </div>
+
+          <p class="muted" style="margin:10px 0 0;">
+            ${progressPercent}% complete
+          </p>
+        </div>
+
         <p class="muted" style="margin-bottom:16px;">
           Choose a lesson to start learning.
         </p>
@@ -1800,49 +1883,104 @@ async function startLesson(topicId, subjectName, topicName) {
         <div id="lessonList">
           ${lessons
             .map(
-              (lesson, index) => `
-                <div class="card" style="margin-bottom:12px;">
-                  <div class="muted">
-                    Lesson ${index + 1}
-                  </div>
+              (lesson, index) => {
+                const isCompleted =
+                  completedLessonIds.has(
+                    Number(lesson.id)
+                  );
 
-                  <h3 style="margin:6px 0 12px;">
-                    ${escapeHtml(lesson.title)}
-                  </h3>
-
-                  <button
-                    class="primary open-lesson-btn"
-                    type="button"
-                    data-lesson-id="${lesson.id}"
+                return `
+                  <div
+                    class="card"
+                    style="margin-bottom:12px;"
                   >
-                    📖 Open Lesson
-                  </button>
-                </div>
-              `
+                    <div
+                      style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        gap:10px;
+                      "
+                    >
+                      <div class="muted">
+                        Lesson ${index + 1}
+                      </div>
+
+                      <div>
+                        ${
+                          isCompleted
+                            ? `
+                              <span
+                                style="
+                                  color:#15803d;
+                                  font-weight:700;
+                                "
+                              >
+                                ✅ Completed
+                              </span>
+                            `
+                            : `
+                              <span
+                                style="
+                                  color:#64748b;
+                                  font-weight:600;
+                                "
+                              >
+                                ⭕ Not started
+                              </span>
+                            `
+                        }
+                      </div>
+                    </div>
+
+                    <h3 style="margin:6px 0 12px;">
+                      ${escapeHtml(lesson.title)}
+                    </h3>
+
+                    <button
+                      class="primary open-lesson-btn"
+                      type="button"
+                      data-lesson-id="${lesson.id}"
+                    >
+                      ${
+                        isCompleted
+                          ? "🔄 Review Lesson"
+                          : "📖 Open Lesson"
+                      }
+                    </button>
+                  </div>
+                `;
+              }
             )
             .join("")}
         </div>
       `;
 
-      document.querySelectorAll(".open-lesson-btn").forEach((btn) => {
-        btn.onclick = () => {
-          const lessonId = Number(btn.dataset.lessonId);
+      document
+        .querySelectorAll(".open-lesson-btn")
+        .forEach((btn) => {
+          btn.onclick = () => {
+            const lessonId =
+              Number(btn.dataset.lessonId);
 
-          const selectedLesson = lessons.find(
-            (lesson) => Number(lesson.id) === lessonId
-          );
+            const selectedLesson =
+              lessons.find(
+                lesson =>
+                  Number(lesson.id) ===
+                  lessonId
+              );
 
-          if (selectedLesson) {
-            displayLesson(
-              selectedLesson,
-              subjectName,
-              topicName,
-              topicId,
-              lessons
-            );
-          }
-        };
-      });
+            if (selectedLesson) {
+              displayLesson(
+                selectedLesson,
+                subjectName,
+                topicName,
+                topicId,
+                lessons
+              );
+            }
+          };
+        });
 
       return;
     }
@@ -1860,9 +1998,13 @@ async function startLesson(topicId, subjectName, topicName) {
     );
 
   } catch (e) {
-    console.error("Lesson loading error:", e);
+    console.error(
+      "Lesson loading error:",
+      e
+    );
 
-    $("lessonTitle").textContent = "Could not load lessons";
+    $("lessonTitle").textContent =
+      "Could not load lessons";
 
     $("lessonContent").innerHTML = `
       <p class="muted">
@@ -1871,7 +2013,8 @@ async function startLesson(topicId, subjectName, topicName) {
     `;
 
     $("lessonMsg").textContent =
-      e.message || "Please try again.";
+      e.message ||
+      "Please try again.";
   }
 }
 function displayLesson(
