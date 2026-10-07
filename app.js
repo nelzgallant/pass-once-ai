@@ -1440,3 +1440,89 @@ sb.auth.onAuthStateChange((event, session) => {
 });
 setAuthMode(false);
 load();
+async function startLesson(topicId, subjectName, topicName) {
+  currentTopic = {
+    id: topicId,
+    name: topicName
+  };
+
+  currentSubject = {
+    id: currentSubject?.id || null,
+    name: subjectName
+  };
+
+  // Open the lesson screen
+  show("lessonView");
+
+  $("lessonTitle").textContent = "Loading lesson…";
+  $("lessonSubject").textContent =
+    subjectName + " — " + topicName;
+
+  $("lessonContent").innerHTML = `
+    <p class="muted">Please wait while we load your lesson.</p>
+  `;
+
+  $("lessonMsg").textContent = "";
+
+  try {
+    const { data, error } = await sb
+      .from("lessons")
+      .select("id,topic_id,title,content,lesson_order")
+      .eq("topic_id", topicId)
+      .order("lesson_order", { ascending: true });
+
+    if (error) throw error;
+
+    const lessons = data || [];
+
+    if (!lessons.length) {
+      $("lessonTitle").textContent = topicName;
+
+      $("lessonContent").innerHTML = `
+        <div class="card">
+          <h3>📖 Lesson coming soon</h3>
+          <p class="muted">
+            We don't have a lesson for this topic yet.
+          </p>
+        </div>
+      `;
+
+      return;
+    }
+
+    const lesson = lessons[0];
+
+    $("lessonTitle").textContent = lesson.title;
+    $("lessonSubject").textContent =
+      subjectName + " — " + topicName;
+
+    $("lessonContent").innerHTML = `
+      <div style="line-height:1.8;">
+        ${lesson.content || "<p>No lesson content available yet.</p>"}
+      </div>
+    `;
+
+    $("markLessonComplete").dataset.lessonId = lesson.id;
+
+    $("practiceLesson").onclick = () => {
+      startTopic(
+        topicId,
+        subjectName,
+        topicName
+      );
+    };
+
+  } catch (e) {
+    console.error("Lesson loading error:", e);
+
+    $("lessonTitle").textContent = "Could not load lesson";
+
+    $("lessonContent").innerHTML = `
+      <p class="muted">
+        We couldn't load this lesson right now.
+      </p>
+    `;
+
+    $("lessonMsg").textContent = e.message;
+  }
+}
