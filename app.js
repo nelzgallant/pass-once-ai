@@ -1924,13 +1924,13 @@ function displayLesson(
 
   $("lessonMsg").textContent = "";
 
-  $("practiceLesson").onclick = () => {
-    startTopic(
-      topicId,
-      subjectName,
-      topicName
-    );
-  };
+$("practiceLesson").onclick = () =>
+  startTopic(
+    topicId,
+    subjectName,
+    topicName,
+    lessonId
+  );
 
   $("backLesson").onclick = () => {
     start(
