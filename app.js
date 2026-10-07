@@ -1191,9 +1191,10 @@ async function startTopic(topicId, subjectName, topicName) {
       .select(
         "id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type"
       )
-      .eq("language_code", "en")
-      .eq("topic_id", topicId)
-      .order("id");
+.eq("language_code", "en")
+.eq("topic_id", topicId)
+.eq("is_published", true)
+.order("id");
 
     if (error) throw error;
 
