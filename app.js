@@ -1454,15 +1454,14 @@ async function startLesson(topicId, subjectName, topicName) {
     name: subjectName
   };
 
-  // Open the lesson screen
   show("lessonView");
 
-  $("lessonTitle").textContent = "Loading lesson…";
+  $("lessonTitle").textContent = "Loading lessons…";
   $("lessonSubject").textContent =
     subjectName + " — " + topicName;
 
   $("lessonContent").innerHTML = `
-    <p class="muted">Please wait while we load your lesson.</p>
+    <p class="muted">Please wait while we load your lessons.</p>
   `;
 
   $("lessonMsg").textContent = "";
@@ -1472,7 +1471,8 @@ async function startLesson(topicId, subjectName, topicName) {
       .from("lessons")
       .select("id,topic_id,title,content,lesson_order")
       .eq("topic_id", topicId)
-      .order("lesson_order", { ascending: true });
+      .order("lesson_order", { ascending: true })
+      .order("id", { ascending: true });
 
     if (error) throw error;
 
@@ -1493,120 +1493,93 @@ async function startLesson(topicId, subjectName, topicName) {
       return;
     }
 
-    const lesson = lessons[0];
+    /*
+      If there is more than one lesson,
+      show the student a lesson list first.
+    */
+    if (lessons.length > 1) {
+      $("lessonTitle").textContent = "📚 Lessons";
 
-    $("lessonTitle").textContent = lesson.title;
-    $("lessonSubject").textContent =
-      subjectName + " — " + topicName;
+      $("lessonContent").innerHTML = `
+        <p class="muted" style="margin-bottom:16px;">
+          Choose a lesson to start learning.
+        </p>
 
-    $("lessonContent").innerHTML = `
-      <div style="line-height:1.8;">
-        ${lesson.content || "<p>No lesson content available yet.</p>"}
-      </div>
-    `;
+        <div id="lessonList">
+          ${lessons
+            .map(
+              (lesson, index) => `
+                <div class="card" style="margin-bottom:12px;">
+                  <div class="muted">
+                    Lesson ${index + 1}
+                  </div>
 
-$("markLessonComplete").dataset.lessonId = lesson.id;
+                  <h3 style="margin:6px 0 12px;">
+                    ${escapeHtml(lesson.title)}
+                  </h3>
 
-$("practiceLesson").onclick = () => {
-  startTopic(
-    topicId,
-    subjectName,
-    topicName
-  );
-};
+                  <button
+                    class="primary open-lesson-btn"
+                    type="button"
+                    data-lesson-id="${lesson.id}"
+                  >
+                    📖 Open Lesson
+                  </button>
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+      `;
 
-$("backLesson").onclick = () => {
-  start(
-    currentSubject.id,
-    currentSubject.name
-  );
-};
+      document.querySelectorAll(".open-lesson-btn").forEach((btn) => {
+        btn.onclick = () => {
+          const lessonId = Number(btn.dataset.lessonId);
 
-$("markLessonComplete").onclick = async () => {
-  const lessonId = Number(
-    $("markLessonComplete").dataset.lessonId
-  );
+          const selectedLesson = lessons.find(
+            (lesson) => Number(lesson.id) === lessonId
+          );
 
-  if (!lessonId || !user) {
-    $("lessonMsg").textContent =
-      "Please log in before marking a lesson complete.";
-    return;
-  }
+          if (selectedLesson) {
+            displayLesson(
+              selectedLesson,
+              subjectName,
+              topicName,
+              topicId,
+              lessons
+            );
+          }
+        };
+      });
 
-  try {
-    const button = $("markLessonComplete");
-
-    button.disabled = true;
-    button.textContent = "Saving…";
-    $("lessonMsg").textContent = "";
-
-    // Check whether this lesson already has progress
-    const { data: existing, error: findError } = await sb
-      .from("student_progress")
-      .select("id")
-      .eq("student_id", user.id)
-      .eq("lesson_id", lessonId)
-      .limit(1)
-      .maybeSingle();
-
-    if (findError) throw findError;
-
-    if (existing) {
-      // Update existing progress
-      const { error: updateError } = await sb
-        .from("student_progress")
-        .update({
-          completed: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", existing.id);
-
-      if (updateError) throw updateError;
-
-    } else {
-      // Create new progress record
-      const { error: insertError } = await sb
-        .from("student_progress")
-        .insert({
-          student_id: user.id,
-          lesson_id: lessonId,
-          completed: true,
-          updated_at: new Date().toISOString()
-        });
-
-      if (insertError) throw insertError;
+      return;
     }
 
-    button.textContent = "✅ Lesson Completed";
-    button.disabled = true;
-
-    $("lessonMsg").textContent =
-      "Great job! This lesson has been marked as completed. 🎉";
-
-  } catch (e) {
-    console.error("Mark lesson complete error:", e);
-
-    $("markLessonComplete").disabled = false;
-    $("markLessonComplete").textContent =
-      "✅ Mark Lesson Complete";
-
-    $("lessonMsg").textContent =
-      "Could not save your lesson progress: " +
-      (e.message || "Please try again.");
-  }
-};
+    /*
+      If there is only one lesson,
+      open it directly.
+    */
+    displayLesson(
+      lessons[0],
+      subjectName,
+      topicName,
+      topicId,
+      lessons
+    );
 
   } catch (e) {
     console.error("Lesson loading error:", e);
 
-    $("lessonTitle").textContent = "Could not load lesson";
+    $("lessonTitle").textContent = "Could not load lessons";
 
     $("lessonContent").innerHTML = `
       <p class="muted">
-        We couldn't load this lesson right now.
+        We couldn't load these lessons right now.
       </p>
     `;
 
-    $("lessonMsg").textContent = e.message;
+    $("lessonMsg").textContent =
+      e.message || "Please try again.";
   }
 }
+
