@@ -1073,12 +1073,48 @@ async function start(subjectId, subjectName) {
       ).innerHTML = `<p class="muted">No topics are available for ${escapeHtml( subjectName )} yet.</p>`;
       return;
     }
-    $("options").innerHTML = topics
-      .map(
-        (t) =>
-          `<button class="subject" type="button" data-topic-id="${ t.id }" style="text-align:left;margin-bottom:10px"><strong>${escapeHtml( t.name )}</strong>${ t.description ? `<div class="muted" style="margin-top:5px">${escapeHtml( t.description )}</div>` : "" }</button>`
-      )
-      .join("");
+$("options").innerHTML = topics
+  .map(
+    (t) =>
+      `
+      <div class="card" style="margin-bottom:12px;">
+        <strong>${escapeHtml(t.name)}</strong>
+
+        ${
+          t.description
+            ? `<div class="muted" style="margin-top:5px;">
+                ${escapeHtml(t.description)}
+              </div>`
+            : ""
+        }
+
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+
+          <button
+            class="primary learn-topic-btn"
+            type="button"
+            data-topic-id="${t.id}"
+            data-subject="${escapeHtml(subjectName)}"
+            data-topic-name="${escapeHtml(t.name)}"
+          >
+            📖 Learn
+          </button>
+
+          <button
+            class="ghost practice-topic-btn"
+            type="button"
+            data-topic-id="${t.id}"
+            data-subject="${escapeHtml(subjectName)}"
+            data-topic-name="${escapeHtml(t.name)}"
+          >
+            📝 Practice
+          </button>
+
+        </div>
+      </div>
+      `
+  )
+  .join("");
     document
       .querySelectorAll("[data-topic-id]")
       .forEach(
