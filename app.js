@@ -1831,43 +1831,6 @@ async function startLesson(topicId, subjectName, topicName) {
       Load this student's completed lessons
       for the current topic.
     */
-    let completedLessonIds = new Set();
-
-    if (user) {
-      const lessonIds = lessons.map(
-        lesson => Number(lesson.id)
-      );
-
-      const { data: progressRows, error: progressError } =
-        await sb
-          .from("student_progress")
-          .select("lesson_id,completed")
-          .eq("student_id", user.id)
-          .in("lesson_id", lessonIds);
-
-      if (progressError) throw progressError;
-
-      (progressRows || []).forEach(row => {
-        if (row.completed) {
-          completedLessonIds.add(
-            Number(row.lesson_id)
-          );
-        }
-      });
-    }
-
-    const completedCount =
-      completedLessonIds.size;
-
-    const totalLessons =
-      lessons.length;
-
-    const progressPercent =
-      totalLessons > 0
-        ? Math.round(
-            (completedCount / totalLessons) * 100
-          )
-        : 0;
 
     /*
       If there is more than one lesson,
