@@ -1114,18 +1114,25 @@ $("options").innerHTML = topics
       </div>
       `
   )
-  .join("");
-    document
-      .querySelectorAll("[data-topic-id]")
-      .forEach(
-        (btn) =>
-          (btn.onclick = () =>
-            startTopic(
-              Number(btn.dataset.topicId),
-              subjectName,
-              btn.querySelector("strong")?.textContent || "Topic"
-            ))
-      );
+document.querySelectorAll(".learn-topic-btn").forEach((btn) => {
+  btn.onclick = () => {
+    startLesson(
+      Number(btn.dataset.topicId),
+      btn.dataset.subject,
+      btn.dataset.topicName
+    );
+  };
+});
+
+document.querySelectorAll(".practice-topic-btn").forEach((btn) => {
+  btn.onclick = () => {
+    startTopic(
+      Number(btn.dataset.topicId),
+      btn.dataset.subject,
+      btn.dataset.topicName
+    );
+  };
+});
   } catch (e) {
     console.error(e);
     $("options").innerHTML = `<p>Could not load topics right now.</p>`;
