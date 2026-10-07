@@ -1198,38 +1198,130 @@ async function startTopic(topicId, subjectName, topicName) {
 
     if (error) throw error;
 
-    currentQuestions = data || [];
+currentQuestions = data || [];
+
+if (!currentQuestions.length) {
+  $("question").textContent =
+    "No questions available for this topic yet.";
+
+  $("options").innerHTML = `
+    <button class="ghost" type="button" id="backToTopics">
+      ← Back to Topics
+    </button>
+  `;
+
+  $("backToTopics").onclick = () =>
+    start(currentSubject.id, subjectName);
+
+  return;
+}
 
 /*
-  Shuffle the published question bank so that
-  every practice attempt can appear in a different order.
+  SMART RANDOM PRACTICE
+
+  From the published question bank, select
+  up to 15 questions while keeping a
+  balanced difficulty mix.
 */
-for (let i = currentQuestions.length - 1; i > 0; i--) {
+
+const easyQuestions = currentQuestions.filter(
+  q => q.difficulty === "easy"
+);
+
+const mediumQuestions = currentQuestions.filter(
+  q => q.difficulty === "medium"
+);
+
+const hardQuestions = currentQuestions.filter(
+  q =>
+    q.difficulty === "hard" ||
+    q.difficulty === "challenging"
+  );
+
+function randomSample(array, count) {
+  const copy = [...array];
+
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+
+    [copy[i], copy[j]] = [
+      copy[j],
+      copy[i]
+    ];
+  }
+
+  return copy.slice(
+    0,
+    Math.min(count, copy.length)
+  );
+}
+
+/*
+  Target for a 15-question practice:
+  5 easy
+  7 medium
+  3 challenging
+
+  If the database doesn't yet contain
+  enough questions at a particular level,
+  we fill the remaining spaces from
+  the other available questions.
+*/
+
+let selected = [];
+
+selected.push(
+  ...randomSample(easyQuestions, 5)
+);
+
+selected.push(
+  ...randomSample(mediumQuestions, 7)
+);
+
+selected.push(
+  ...randomSample(hardQuestions, 3)
+);
+
+/*
+  If there are not enough questions to reach
+  15, fill the remaining spaces from all
+  unused published questions.
+*/
+if (selected.length < 15) {
+  const selectedIds = new Set(
+    selected.map(q => q.id)
+  );
+
+  const remaining = currentQuestions.filter(
+    q => !selectedIds.has(q.id)
+  );
+
+  selected.push(
+    ...randomSample(
+      remaining,
+      15 - selected.length
+    )
+  );
+}
+
+/*
+  Shuffle the final selected questions
+  so difficulty levels aren't grouped together.
+*/
+for (let i = selected.length - 1; i > 0; i--) {
   const j = Math.floor(Math.random() * (i + 1));
 
-  [currentQuestions[i], currentQuestions[j]] = [
-    currentQuestions[j],
-    currentQuestions[i]
+  [selected[i], selected[j]] = [
+    selected[j],
+    selected[i]
   ];
 }
 
-if (!currentQuestions.length) {
-      $("question").textContent =
-        "No questions available for this topic yet.";
+currentQuestions = selected;
 
-      $("options").innerHTML = `
-        <button class="ghost" type="button" id="backToTopics">
-          ← Back to Topics
-        </button>
-      `;
-
-      $("backToTopics").onclick = () =>
-        start(currentSubject.id, subjectName);
-
-      return;
-    }
-
-    currentAnswers = new Array(currentQuestions.length).fill(null);
+currentAnswers = new Array(
+  currentQuestions.length
+).fill(null);
 
     renderQ();
 
