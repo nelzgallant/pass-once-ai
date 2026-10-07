@@ -1874,129 +1874,122 @@ async function startLesson(topicId, subjectName, topicName) {
       show the lesson list with progress.
     */
     if (lessons.length > 1) {
-      $("lessonTitle").textContent =
-        "📚 Lessons";
+$("lessonTitle").textContent = "📚 Lessons";
 
-      $("lessonContent").innerHTML = `
-        <div class="card" style="margin-bottom:18px;">
-          <div style="
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            gap:12px;
-            margin-bottom:10px;
-          ">
-            <strong>📈 Topic Progress</strong>
+$("lessonContent").innerHTML = `
+  <div class="card" style="margin-bottom:18px;">
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:10px;
+    ">
+      <strong>📈 Topic Progress</strong>
 
-            <strong>
-              ${completedCount} / ${totalLessons}
-            </strong>
-          </div>
+      <strong>
+        ${completedCount} / ${totalLessons}
+      </strong>
+    </div>
 
-          <div style="
-            width:100%;
-            height:10px;
-            background:#e8eef7;
-            border-radius:999px;
-            overflow:hidden;
-          ">
-            <div style="
-              width:${progressPercent}%;
-              height:100%;
-              background:linear-gradient(
-                90deg,
-                #0b57d0,
-                #16a34a
-              );
-              border-radius:999px;
-              transition:width .3s ease;
-            "></div>
-          </div>
+    <div style="
+      width:100%;
+      height:10px;
+      background:#e8eef7;
+      border-radius:999px;
+      overflow:hidden;
+    ">
+      <div style="
+        width:${progressPercent}%;
+        height:100%;
+        background:linear-gradient(
+          90deg,
+          #0b57d0,
+          #16a34a
+        );
+        border-radius:999px;
+        transition:width .3s ease;
+      "></div>
+    </div>
 
-          <p class="muted" style="margin:10px 0 0;">
-            ${progressPercent}% complete
-          </p>
-        </div>
+    <p class="muted" style="margin:10px 0 0;">
+      ${progressPercent}% complete
+    </p>
+  </div>
 
-        <p class="muted" style="margin-bottom:16px;">
-          Choose a lesson to start learning.
-        </p>
+  <p class="muted" style="margin-bottom:16px;">
+    Choose a lesson to start learning.
+  </p>
 
-        <div id="lessonList">
-          ${lessons
-            .map(
-              (lesson, index) => {
-                const isCompleted =
-                  completedLessonIds.has(
-                    Number(lesson.id)
-                  );
+  <div id="lessonList">
+    ${lessons
+      .map(
+        (lesson, index) => {
+          const isCompleted =
+            completedLessonIds.has(
+              Number(lesson.id)
+            );
 
-                return `
-                  <div
-                    class="card"
-                    style="margin-bottom:12px;"
-                  >
-                    <div
-                      style="
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                        gap:10px;
-                      "
-                    >
-                      <div class="muted">
-                        Lesson ${index + 1}
-                      </div>
+          return `
+            <div
+              class="card"
+              style="margin-bottom:12px;"
+            >
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:10px;
+              ">
+                <div class="muted">
+                  Lesson ${index + 1}
+                </div>
 
-                      <div>
-                        ${
-                          isCompleted
-                            ? `
-                              <span
-                                style="
-                                  color:#15803d;
-                                  font-weight:700;
-                                "
-                              >
-                                ✅ Completed
-                              </span>
-                            `
-                            : `
-                              <span
-                                style="
-                                  color:#64748b;
-                                  font-weight:600;
-                                "
-                              >
-                                ⭕ Not started
-                              </span>
-                            `
-                        }
-                      </div>
-                    </div>
+                <div>
+                  ${
+                    isCompleted
+                      ? `
+                        <span style="
+                          color:#15803d;
+                          font-weight:700;
+                        ">
+                          ✅ Completed
+                        </span>
+                      `
+                      : `
+                        <span style="
+                          color:#64748b;
+                          font-weight:600;
+                        ">
+                          ⭕ Not started
+                        </span>
+                      `
+                  }
+                </div>
+              </div>
 
-                    <h3 style="margin:6px 0 12px;">
-                      ${escapeHtml(lesson.title)}
-                    </h3>
+              <h3 style="margin:6px 0 12px;">
+                ${escapeHtml(lesson.title)}
+              </h3>
 
-                    <button
-                      class="primary open-lesson-btn"
-                      type="button"
-                      data-lesson-id="${lesson.id}"
-                    >
-                      ${
-                        isCompleted
-                          ? "🔄 Review Lesson"
-                          : "📖 Open Lesson"
-                      }
-                    </button>
-                  </div>
-                `;
-              }
-            )
-            .join("")}
-        </div>
-      `;
+              <button
+                class="primary open-lesson-btn"
+                type="button"
+                data-lesson-id="${lesson.id}"
+              >
+                ${
+                  isCompleted
+                    ? "🔄 Review Lesson"
+                    : "📖 Open Lesson"
+                }
+              </button>
+            </div>
+          `;
+        }
+      )
+      .join("")}
+  </div>
+`;
 
       document
         .querySelectorAll(".open-lesson-btn")
