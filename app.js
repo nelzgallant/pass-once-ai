@@ -21,9 +21,9 @@ function show(id) {
     "dash",
     "parentDash",
     "quiz",
+    "lessonView",
     "tutorView",
   ].forEach((x) => $(x).classList.add("hidden"));
-  $(id).classList.remove("hidden");
 }
 function message(text = "") {
   $("msg").textContent = text;
