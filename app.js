@@ -1504,15 +1504,96 @@ async function startLesson(topicId, subjectName, topicName) {
       </div>
     `;
 
-    $("markLessonComplete").dataset.lessonId = lesson.id;
+$("markLessonComplete").dataset.lessonId = lesson.id;
 
-    $("practiceLesson").onclick = () => {
-      startTopic(
-        topicId,
-        subjectName,
-        topicName
-      );
-    };
+$("practiceLesson").onclick = () => {
+  startTopic(
+    topicId,
+    subjectName,
+    topicName
+  );
+};
+
+$("backLesson").onclick = () => {
+  start(
+    currentSubject.id,
+    currentSubject.name
+  );
+};
+
+$("markLessonComplete").onclick = async () => {
+  const lessonId = Number(
+    $("markLessonComplete").dataset.lessonId
+  );
+
+  if (!lessonId || !user) {
+    $("lessonMsg").textContent =
+      "Please log in before marking a lesson complete.";
+    return;
+  }
+
+  try {
+    const button = $("markLessonComplete");
+
+    button.disabled = true;
+    button.textContent = "Saving…";
+    $("lessonMsg").textContent = "";
+
+    // Check whether this lesson already has progress
+    const { data: existing, error: findError } = await sb
+      .from("student_progress")
+      .select("id")
+      .eq("student_id", user.id)
+      .eq("lesson_id", lessonId)
+      .limit(1)
+      .maybeSingle();
+
+    if (findError) throw findError;
+
+    if (existing) {
+      // Update existing progress
+      const { error: updateError } = await sb
+        .from("student_progress")
+        .update({
+          completed: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", existing.id);
+
+      if (updateError) throw updateError;
+
+    } else {
+      // Create new progress record
+      const { error: insertError } = await sb
+        .from("student_progress")
+        .insert({
+          student_id: user.id,
+          lesson_id: lessonId,
+          completed: true,
+          updated_at: new Date().toISOString()
+        });
+
+      if (insertError) throw insertError;
+    }
+
+    button.textContent = "✅ Lesson Completed";
+    button.disabled = true;
+
+    $("lessonMsg").textContent =
+      "Great job! This lesson has been marked as completed. 🎉";
+
+  } catch (e) {
+    console.error("Mark lesson complete error:", e);
+
+    $("markLessonComplete").disabled = false;
+    $("markLessonComplete").textContent =
+      "✅ Mark Lesson Complete";
+
+    $("lessonMsg").textContent =
+      "Could not save your lesson progress: " +
+      (e.message || "Please try again.");
+  }
+};
 
   } catch (e) {
     console.error("Lesson loading error:", e);
