@@ -1924,13 +1924,22 @@ function displayLesson(
 
   $("lessonMsg").textContent = "";
 
-$("practiceLesson").onclick = () =>
-  startTopic(
-    topicId,
-    subjectName,
-    topicName,
-    lessonId
-  );
+$("practiceLesson").onclick = async () => {
+  try {
+    await startTopic(
+      Number(topicId),
+      subjectName,
+      topicName,
+      Number(lesson.id)
+    );
+  } catch (e) {
+    console.error("Practice This Lesson error:", e);
+
+    $("lessonMsg").textContent =
+      "Could not start practice: " +
+      (e.message || "Please try again.");
+  }
+};
 
   $("backLesson").onclick = () => {
     start(
