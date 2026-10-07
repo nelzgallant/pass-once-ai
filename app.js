@@ -1160,25 +1160,38 @@ async function getPracticeTopics(subjectId, classId) {
   }
   return rows;
 }
-async function startTopic(topicId, subjectName, topicName) {
-  currentTopic = { id: topicId, name: topicName };
+async function startTopic(
+  topicId,
+  subjectName,
+  topicName,
+  lessonId = null
+) {
+  currentTopic = {
+    id: topicId,
+    name: topicName
+  };
 
   currentSubject = {
     id: currentSubject?.id || null,
     name: subjectName
   };
+
   currentQuestions = [];
   currentAnswers = [];
   currentIndex = 0;
   currentScore = 0;
   answered = false;
 
-  // Open the quiz screen
   show("quiz");
 
-  $("subject").textContent = subjectName + " — " + topicName;
-  $("question").textContent = "Loading questions…";
+  $("subject").textContent =
+    subjectName + " — " + topicName;
+
+  $("question").textContent =
+    "Loading questions…";
+
   $("options").innerHTML = "";
+
   $("explain").classList.add("hidden");
   $("next").classList.add("hidden");
 
@@ -1186,152 +1199,326 @@ async function startTopic(topicId, subjectName, topicName) {
   $("submitQuiz").classList.add("hidden");
 
   try {
-    const { data, error } = await sb
-      .from("questions")
-      .select(
-        "id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type"
-      )
-.eq("language_code", "en")
-.eq("topic_id", topicId)
-.eq("is_published", true)
-.order("id");
+    let questionPool = [];
 
-    if (error) throw error;
+    /*
+      ==========================================
+      LESSON-SPECIFIC PRACTICE
+      ==========================================
+    */
 
-currentQuestions = data || [];
+    if (lessonId) {
+      // Get the questions deliberately connected
+      // to this lesson as Core / Revision / Challenge.
+      const { data: links, error: linkError } =
+        await sb
+          .from("lesson_question_links")
+          .select(
+            "question_id, role, weight"
+          )
+          .eq("lesson_id", lessonId);
 
-if (!currentQuestions.length) {
-  $("question").textContent =
-    "No questions available for this topic yet.";
+      if (linkError) throw linkError;
 
-  $("options").innerHTML = `
-    <button class="ghost" type="button" id="backToTopics">
-      ← Back to Topics
-    </button>
-  `;
+      const questionIds = [
+        ...new Set(
+          (links || []).map(
+            x => Number(x.question_id)
+          )
+        )
+      ];
 
-  $("backToTopics").onclick = () =>
-    start(currentSubject.id, subjectName);
+      if (!questionIds.length) {
+        $("question").textContent =
+          "No questions available for this lesson yet.";
 
-  return;
-}
+        $("options").innerHTML = `
+          <button class="ghost" type="button" id="backToLesson">
+            ← Back to Lesson
+          </button>
+        `;
 
-/*
-  SMART RANDOM PRACTICE
+        $("backToLesson").onclick = () =>
+          displayLesson(
+            lessonId,
+            topicId,
+            subjectName,
+            topicName
+          );
 
-  From the published question bank, select
-  up to 15 questions while keeping a
-  balanced difficulty mix.
-*/
+        return;
+      }
 
-const easyQuestions = currentQuestions.filter(
-  q => q.difficulty === "easy"
-);
+      const { data: questions, error: questionError } =
+        await sb
+          .from("questions")
+          .select(
+            "id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type"
+          )
+          .in("id", questionIds)
+          .eq("language_code", "en")
+          .eq("is_published", true);
 
-const mediumQuestions = currentQuestions.filter(
-  q => q.difficulty === "medium"
-);
+      if (questionError) throw questionError;
 
-const hardQuestions = currentQuestions.filter(
-  q =>
-    q.difficulty === "hard" ||
-    q.difficulty === "challenging"
-  );
+      const roleMap = new Map(
+        (links || []).map(link => [
+          Number(link.question_id),
+          link.role
+        ])
+      );
 
-function randomSample(array, count) {
-  const copy = [...array];
+      questionPool = (questions || []).map(q => ({
+        ...q,
+        practiceRole:
+          roleMap.get(Number(q.id)) || "core"
+      }));
 
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    } else {
 
-    [copy[i], copy[j]] = [
-      copy[j],
-      copy[i]
-    ];
-  }
+      /*
+        ==========================================
+        NORMAL TOPIC PRACTICE
+        ==========================================
+        Used by existing "Practice Again"
+        buttons and other topic-level practice.
+      */
 
-  return copy.slice(
-    0,
-    Math.min(count, copy.length)
-  );
-}
+      const { data, error } = await sb
+        .from("questions")
+        .select(
+          "id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type"
+        )
+        .eq("language_code", "en")
+        .eq("topic_id", topicId)
+        .eq("is_published", true)
+        .order("id");
 
-/*
-  Target for a 15-question practice:
-  5 easy
-  7 medium
-  3 challenging
+      if (error) throw error;
 
-  If the database doesn't yet contain
-  enough questions at a particular level,
-  we fill the remaining spaces from
-  the other available questions.
-*/
+      questionPool = data || [];
+    }
 
-let selected = [];
+    /*
+      ==========================================
+      SMART RANDOM SELECTION
+      ==========================================
+    */
 
-selected.push(
-  ...randomSample(easyQuestions, 5)
-);
+    if (!questionPool.length) {
+      $("question").textContent =
+        "No questions available for this lesson yet.";
 
-selected.push(
-  ...randomSample(mediumQuestions, 7)
-);
+      $("options").innerHTML = `
+        <button class="ghost" type="button" id="backToTopics">
+          ← Back to Topics
+        </button>
+      `;
 
-selected.push(
-  ...randomSample(hardQuestions, 3)
-);
+      $("backToTopics").onclick = () =>
+        start(currentSubject.id, subjectName);
 
-/*
-  If there are not enough questions to reach
-  15, fill the remaining spaces from all
-  unused published questions.
-*/
-if (selected.length < 15) {
-  const selectedIds = new Set(
-    selected.map(q => q.id)
-  );
+      return;
+    }
 
-  const remaining = currentQuestions.filter(
-    q => !selectedIds.has(q.id)
-  );
+    /*
+      Lesson practice:
+      Keep revision questions available,
+      but prioritize Core questions.
 
-  selected.push(
-    ...randomSample(
-      remaining,
-      15 - selected.length
-    )
-  );
-}
+      For a 15-question practice:
+      - up to 12 Core
+      - up to 2 Revision
+      - up to 1 Challenge
 
-/*
-  Shuffle the final selected questions
-  so difficulty levels aren't grouped together.
-*/
-for (let i = selected.length - 1; i > 0; i--) {
-  const j = Math.floor(Math.random() * (i + 1));
+      If a category doesn't have enough questions,
+      the remaining places are filled from
+      the available pool.
+    */
 
-  [selected[i], selected[j]] = [
-    selected[j],
-    selected[i]
-  ];
-}
+    let selected = [];
 
-currentQuestions = selected;
+    if (lessonId) {
+      const core = questionPool.filter(
+        q => q.practiceRole === "core"
+      );
 
-currentAnswers = new Array(
-  currentQuestions.length
-).fill(null);
+      const revision = questionPool.filter(
+        q => q.practiceRole === "revision"
+      );
+
+      const challenge = questionPool.filter(
+        q => q.practiceRole === "challenge"
+      );
+
+      const shuffle = arr => {
+        const copy = [...arr];
+
+        for (
+          let i = copy.length - 1;
+          i > 0;
+          i--
+        ) {
+          const j =
+            Math.floor(Math.random() * (i + 1));
+
+          [copy[i], copy[j]] =
+            [copy[j], copy[i]];
+        }
+
+        return copy;
+      };
+
+      selected.push(
+        ...shuffle(core).slice(0, 12)
+      );
+
+      selected.push(
+        ...shuffle(revision).slice(0, 2)
+      );
+
+      selected.push(
+        ...shuffle(challenge).slice(0, 1)
+      );
+
+      /*
+        Fill any remaining spaces.
+      */
+
+      const selectedIds = new Set(
+        selected.map(q => Number(q.id))
+      );
+
+      const remaining = shuffle(
+        questionPool.filter(
+          q => !selectedIds.has(Number(q.id))
+        )
+      );
+
+      while (
+        selected.length < 15 &&
+        remaining.length
+      ) {
+        selected.push(
+          remaining.shift()
+        );
+      }
+
+      /*
+        If the lesson has fewer than 15
+        connected questions, use everything.
+      */
+
+      selected = selected.slice(0, 15);
+
+    } else {
+
+      /*
+        Preserve our existing topic-level
+        smart-random behaviour.
+      */
+
+      const easy = questionPool.filter(
+        q =>
+          String(q.difficulty || "")
+            .toLowerCase() === "easy"
+      );
+
+      const medium = questionPool.filter(
+        q =>
+          String(q.difficulty || "")
+            .toLowerCase() === "medium"
+      );
+
+      const hard = questionPool.filter(
+        q => {
+          const d =
+            String(q.difficulty || "")
+              .toLowerCase();
+
+          return (
+            d === "hard" ||
+            d === "challenging"
+          );
+        }
+      );
+
+      const shuffle = arr => {
+        const copy = [...arr];
+
+        for (
+          let i = copy.length - 1;
+          i > 0;
+          i--
+        ) {
+          const j =
+            Math.floor(Math.random() * (i + 1));
+
+          [copy[i], copy[j]] =
+            [copy[j], copy[i]];
+        }
+
+        return copy;
+      };
+
+      selected = [
+        ...shuffle(easy).slice(0, 5),
+        ...shuffle(medium).slice(0, 7),
+        ...shuffle(hard).slice(0, 3)
+      ];
+
+      const selectedIds = new Set(
+        selected.map(q => Number(q.id))
+      );
+
+      const remaining = shuffle(
+        questionPool.filter(
+          q => !selectedIds.has(Number(q.id))
+        )
+      );
+
+      while (
+        selected.length < 15 &&
+        remaining.length
+      ) {
+        selected.push(
+          remaining.shift()
+        );
+      }
+
+      selected = shuffle(
+        selected.slice(0, 15)
+      );
+    }
+
+    /*
+      Final question set
+    */
+
+    currentQuestions = selected;
+
+    currentAnswers =
+      new Array(
+        currentQuestions.length
+      ).fill(null);
 
     renderQ();
 
   } catch (e) {
-    console.error(e);
+    console.error(
+      "Practice loading error:",
+      e
+    );
 
-    $("question").textContent = "Could not load questions.";
+    $("question").textContent =
+      "Could not load questions.";
 
-    $("explain").textContent = e.message;
-    $("explain").classList.remove("hidden");
+    $("explain").textContent =
+      e.message;
+
+    $("explain").classList.remove(
+      "hidden"
+    );
   }
 }
 async function topicIds(subjectId, classId) {
