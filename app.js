@@ -1200,7 +1200,20 @@ async function startTopic(topicId, subjectName, topicName) {
 
     currentQuestions = data || [];
 
-    if (!currentQuestions.length) {
+/*
+  Shuffle the published question bank so that
+  every practice attempt can appear in a different order.
+*/
+for (let i = currentQuestions.length - 1; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+
+  [currentQuestions[i], currentQuestions[j]] = [
+    currentQuestions[j],
+    currentQuestions[i]
+  ];
+}
+
+if (!currentQuestions.length) {
       $("question").textContent =
         "No questions available for this topic yet.";
 
