@@ -2016,10 +2016,48 @@ $("practiceLesson").onclick = async () => {
         if (insertError) throw insertError;
       }
 
-      button.textContent = "✅ Lesson Completed";
+button.textContent = "✅ Lesson Completed";
 
-      $("lessonMsg").textContent =
-        "Great job! This lesson has been marked as completed. 🎉";
+$("lessonMsg").textContent =
+  "Great job! This lesson has been marked as completed. 🎉";
+
+if (lessons.length > 1) {
+  const currentIndex = lessons.findIndex(
+    l => Number(l.id) === Number(lesson.id)
+  );
+
+  const nextLesson = lessons[currentIndex + 1];
+
+  if (nextLesson) {
+    const nextButton = document.createElement("button");
+
+    nextButton.type = "button";
+    nextButton.className = "primary";
+    nextButton.textContent = "➡️ Continue to Next Lesson";
+
+    nextButton.style.marginTop = "12px";
+
+    nextButton.onclick = () => {
+      displayLesson(
+        nextLesson,
+        subjectName,
+        topicName,
+        topicId,
+        lessons
+      );
+    };
+
+    $("lessonMsg").appendChild(nextButton);
+  } else {
+    const finishedMsg = document.createElement("p");
+
+    finishedMsg.style.marginTop = "12px";
+    finishedMsg.innerHTML =
+      "<strong>🎉 Amazing! You have completed all the lessons in this topic.</strong>";
+
+    $("lessonMsg").appendChild(finishedMsg);
+  }
+}
 
     } catch (e) {
       console.error(
