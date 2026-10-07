@@ -1954,31 +1954,53 @@ $("lessonContent").innerHTML = `
   </div>
 `;
 
-      document
-        .querySelectorAll(".open-lesson-btn")
-        .forEach((btn) => {
-          btn.onclick = () => {
-            const lessonId =
-              Number(btn.dataset.lessonId);
+document
+  .querySelectorAll(".open-lesson-btn")
+  .forEach((btn) => {
+    btn.onclick = () => {
+      try {
+        const lessonId =
+          Number(btn.dataset.lessonId);
 
-            const selectedLesson =
-              lessons.find(
-                lesson =>
-                  Number(lesson.id) ===
-                  lessonId
-              );
+        const selectedLesson =
+          lessons.find(
+            lesson =>
+              Number(lesson.id) === lessonId
+          );
 
-            if (selectedLesson) {
-              displayLesson(
-                selectedLesson,
-                subjectName,
-                topicName,
-                topicId,
-                lessons
-              );
-            }
-          };
+        if (!selectedLesson) {
+          $("lessonMsg").textContent =
+            "Could not find this lesson. Please try again.";
+          return;
+        }
+
+        show("lessonView");
+
+        displayLesson(
+          selectedLesson,
+          subjectName,
+          topicName,
+          topicId,
+          lessons
+        );
+
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth"
         });
+
+      } catch (e) {
+        console.error(
+          "Open lesson error:",
+          e
+        );
+
+        $("lessonMsg").textContent =
+          "Could not open this lesson: " +
+          (e.message || "Please try again.");
+      }
+    };
+  });
 
       return;
     }
