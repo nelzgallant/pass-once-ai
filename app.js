@@ -1769,7 +1769,49 @@ async function startLesson(topicId, subjectName, topicName) {
     if (error) throw error;
 
     const lessons = data || [];
+    /*
+      Load this student's completed lessons
+      for the current topic.
+    */
+    let completedLessonIds = new Set();
 
+    if (user) {
+      const lessonIds = lessons.map(
+        lesson => Number(lesson.id)
+      );
+
+      if (lessonIds.length) {
+        const { data: progressRows, error: progressError } =
+          await sb
+            .from("student_progress")
+            .select("lesson_id,completed")
+            .eq("student_id", user.id)
+            .in("lesson_id", lessonIds);
+
+        if (progressError) throw progressError;
+
+        (progressRows || []).forEach(row => {
+          if (row.completed) {
+            completedLessonIds.add(
+              Number(row.lesson_id)
+            );
+          }
+        });
+      }
+    }
+
+    const completedCount =
+      completedLessonIds.size;
+
+    const totalLessons =
+      lessons.length;
+
+    const progressPercent =
+      totalLessons > 0
+        ? Math.round(
+            (completedCount / totalLessons) * 100
+          )
+        : 0;
     if (!lessons.length) {
       $("lessonTitle").textContent = topicName;
 
