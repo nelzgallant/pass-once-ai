@@ -2074,7 +2074,11 @@ function displayLesson(
         : ""
     }
   `;
-
+  // Always start a newly opened lesson from the top
+  window.scrollTo({
+    top: 0,
+    behavior: "auto"
+  });
   $("markLessonComplete").dataset.lessonId = lesson.id;
 
   /*
