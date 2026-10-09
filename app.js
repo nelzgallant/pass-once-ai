@@ -12,6 +12,7 @@ let currentSubject = null,
   currentIndex = 0,
   currentScore = 0,
   answered = false;
+let periodicTestMode = false;
 
 function show(id) {
   [
@@ -912,7 +913,17 @@ async function renderDash(openPractice = true) {
   $(
     "subjects"
   ).innerHTML = `<div class="card" style="margin-bottom:14px"><h3 style="margin:0 0 4px">📈 My Learning Progress</h3><p class="muted" style="margin:0 0 12px">See your real practice performance.</p><button class="primary" type="button" id="openProgress">View My Progress</button></div><div id="progressPanel" class="hidden"></div><h3 style="margin:18px 0 10px">Subjects</h3>${subjectCards}`;
-  $("practiceSubjects").innerHTML = subjectCards;
+  const isJSS1 = normalizeLevel(profile?.level) === "JSS1";
+  const periodicTestCard = isJSS1 ? `
+    <div class="card" style="margin-top:16px;border:2px solid #0b57d0">
+      <h3 style="margin:0 0 6px">📝 JSS1 First Term Periodic Test</h3>
+      <p class="muted">Mathematics • 20 questions • Review your answers after submission.</p>
+      <button class="primary" type="button" id="startPeriodicTest">Start Periodic Test</button>
+      <p id="periodicTestMsg" class="muted" style="margin-bottom:0"></p>
+    </div>` : "";
+  $("practiceSubjects").innerHTML = subjectCards + periodicTestCard;
+  const periodicTestButton = $("startPeriodicTest");
+  if (periodicTestButton) periodicTestButton.onclick = startPeriodicTest;
   $("openProgress").onclick = showStudentProgress;
   const progressBtn = $("progress");
   if (progressBtn) progressBtn.onclick = showStudentProgress;
@@ -1178,6 +1189,7 @@ async function startTopic(
   topicName,
   lessonId = null
 ) {
+  periodicTestMode = false;
   currentTopic = {
     id: topicId,
     name: topicName
@@ -1543,6 +1555,47 @@ async function topicIds(subjectId, classId) {
   if (error) throw error;
   return (data || []).map((x) => x.id);
 }
+async function startPeriodicTest() {
+  periodicTestMode = true;
+  currentSubject = { id: 1, name: "Mathematics — JSS1 First Term Periodic Test" };
+  currentTopic = { id: null, name: "First Term Periodic Test" };
+  currentQuestions = [];
+  currentAnswers = [];
+  currentIndex = 0;
+  currentScore = 0;
+  answered = false;
+
+  show("quiz");
+  $("subject").textContent = currentSubject.name;
+  $("question").textContent = "Loading periodic-test questions…";
+  $("options").innerHTML = "";
+  $("explain").classList.add("hidden");
+  $("next").classList.add("hidden");
+  ensureSubmitButton().classList.add("hidden");
+
+  try {
+    const { data, error } = await sb
+      .from("questions")
+      .select("id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type")
+      .eq("exam_type", "JSS1_FIRST_TERM_PERIODIC_TEST")
+      .eq("language_code", "en")
+      .order("id");
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      $("question").textContent = "The periodic test is not available yet. Please try again later.";
+      return;
+    }
+    currentQuestions = data;
+    currentAnswers = data.map(() => null);
+    currentIndex = 0;
+    renderQ();
+  } catch (e) {
+    $("question").textContent = "Could not load the periodic test.";
+    $("explain").textContent = e.message || "Please try again.";
+    $("explain").classList.remove("hidden");
+  }
+}
+
 function ensureSubmitButton() {
   let b = $("submitQuiz");
   if (!b) {
@@ -1659,7 +1712,7 @@ async function submitQuiz() {
      .insert({
   user_id: user.id,
   subject: currentSubject.name,
-  topic_id: Number(currentTopic.id),
+  topic_id: periodicTestMode ? null : Number(currentTopic.id),
   score: currentScore,
   total: currentQuestions.length,
 });
@@ -1691,8 +1744,14 @@ async function submitQuiz() {
     $("next").classList.add("hidden");
     if (submitBtn) submitBtn.classList.add("hidden");
     $("resultDash").onclick = () => renderDash(false);
-    $("resultTopics").onclick = () =>
-      start(currentSubject.id, currentSubject.name);
+    $("resultTopics").onclick = () => {
+      if (periodicTestMode) {
+        periodicTestMode = false;
+        renderDash(true);
+      } else {
+        start(currentSubject.id, currentSubject.name);
+      }
+    };
   } catch (e) {
     $(
       "explain"
