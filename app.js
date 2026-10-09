@@ -667,17 +667,17 @@ const topicRows =
             : "Date unavailable";
 
           return `
-            <li class="card" style="list-style:none;padding:12px;margin:10px 0">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
-                <div>
+            <li class="card" style="list-style:none;padding:14px;margin:10px 0">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:180px">
                   <strong>${escapeHtml(x.subject || "Practice")}</strong>
-                  <div class="muted" style="font-size:.88rem;margin-top:4px">${escapeHtml(topicName)}</div>
-                  <div class="muted" style="font-size:.82rem;margin-top:4px">${escapeHtml(dateLabel)}</div>
+                  <div class="muted" style="font-size:.9rem;margin-top:5px">${escapeHtml(topicName)}</div>
+                  <div class="muted" style="font-size:.82rem;margin-top:6px">🗓️ ${escapeHtml(dateLabel)}</div>
                 </div>
                 <div style="text-align:right;white-space:nowrap">
-                  <strong>${score}/${total}</strong>
-                  <div style="font-size:.9rem;color:${pct < 70 ? "#b45309" : "#2e7d32"};font-weight:700">${pct}%</div>
-                  <span class="muted" style="font-size:.78rem">${isPeriodicTest ? "Periodic test" : "Practice"}</span>
+                  <strong style="font-size:1.05rem">${score}/${total}</strong>
+                  <div style="font-size:.95rem;color:${pct < 70 ? "#b45309" : "#2e7d32"};font-weight:700;margin-top:3px">${pct}%</div>
+                  <span class="muted" style="font-size:.78rem">${isPeriodicTest ? "Periodic Test" : "Topic Practice"}</span>
                 </div>
               </div>
             </li>
@@ -831,8 +831,10 @@ const topicRows =
 
         <ul
           style="
-            padding-left:20px;
-            line-height:1.9
+            list-style:none;
+            padding:0;
+            margin:0;
+            line-height:1.5
           "
         >
           ${recent}
