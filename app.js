@@ -795,6 +795,7 @@ const topicRows =
           ${message}
         </p>
 
+
         <div
           class="card"
           style="
@@ -804,13 +805,23 @@ const topicRows =
           "
         >
           <strong>🎯 Personalised Recommendation</strong>
-
-          <p
-            style="margin:7px 0 0"
-          >
+          <p style="margin:7px 0 0">
             ${escapeHtml(d.recommendation)}
           </p>
+          ${
+            (d.attentionTopic || d.bestTopic)
+              ? `<button
+                  class="primary recommended-practice-btn"
+                  type="button"
+                  data-topic-id="${Number((d.attentionTopic || d.bestTopic).id)}"
+                  data-subject="${escapeHtml((d.attentionTopic || d.bestTopic).subject || "Mathematics")}"
+                  data-topic-name="${escapeHtml((d.attentionTopic || d.bestTopic).name)}"
+                  style="margin-top:12px"
+                >🎯 Practise This Topic</button>`
+              : ""
+          }
         </div>
+
 
         <h4 style="margin-top:20px">
           📚 Subject Progress
