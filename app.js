@@ -1775,7 +1775,19 @@ async function submitQuiz() {
           right >= 0
             ? q[["option_a", "option_b", "option_c", "option_d"][right]] || ""
             : "";
-        return `<div class="card" style="margin-top:12px;padding:14px"><strong>${ i + 1 }. ${escapeHtml( q.question )}</strong><p>${status}</p><p><b>Your answer:</b> ${escapeHtml( chosenText || "No answer" )}</p><p><b>Correct answer:</b> ${escapeHtml(correctText)}</p>${ q.explanation ? `<p class="muted"><b>Explanation:</b> ${escapeHtml( q.explanation )}</p>` : "" }</div>`;
+
+const feedbackText = q.explanation
+  ? escapeHtml(q.explanation)
+  : "Review the correct answer and your class notes to understand this question.";
+
+return `<div class="card" style="margin-top:12px;padding:14px">
+  <strong>${i + 1}. ${escapeHtml(q.question)}</strong>
+  <p>${status}</p>
+  <p><b>Your answer:</b> ${escapeHtml(chosenText || "No answer")}</p>
+  <p><b>Correct answer:</b> ${escapeHtml(correctText || "Not available")}</p>
+  <p class="muted"><b>Learning feedback:</b> ${feedbackText}</p>
+</div>`;
+
       })
       .join("");
     $("question").textContent = "Practice complete! 🎉";
