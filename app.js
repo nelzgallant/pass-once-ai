@@ -54,11 +54,11 @@ function redirectUrl() {
   return window.location.origin + window.location.pathname;
 }
 async function getCurrentUser() {
-  // A fresh visit or refresh may have no active session. Treat that as a normal
-  // signed-out state instead of displaying Supabase's "Auth session missing!".
+  // A refresh may happen before a valid session exists. A missing session
+  // is a normal signed-out state, not an error to show on the login screen.
   const { data, error } = await sb.auth.getSession();
   if (error) throw error;
-  return data?.session?.user || null;
+  return data.session?.user || null;
 }
 
 function setAuthMode(isSignup) {
@@ -149,6 +149,16 @@ async function load() {
     else await renderDash();
   } catch (e) {
     const msg = e.message || "Could not load your account.";
+    // Treat an expired/missing auth session as signed out. Keep the login
+    // screen clean; show messages only for errors that need user attention.
+    if (/auth session missing|session missing|no session/i.test(msg)) {
+      user = null;
+      profile = null;
+      $("logout").classList.add("hidden");
+      show("auth");
+      message("");
+      return;
+    }
     if ($("setupMsg") && !$("setup").classList.contains("hidden"))
       setupMessage("❌ " + msg);
     else message(msg);
@@ -1061,11 +1071,6 @@ async function start(subjectId, subjectName) {
   currentSubject = { id: subjectId, name: subjectName };
   currentTopic = null;
   show("quiz");
-
-  // On the topic-selection screen, let students return directly to Subjects.
-  $("back").textContent = "← Back to Subjects";
-  $("back").onclick = () => renderDash(true);
-
   $("subject").textContent = subjectName + " — Choose a Topic";
   $("count").textContent = "";
   $("bar").style.width = "0%";
@@ -1190,10 +1195,6 @@ async function startTopic(
   answered = false;
 
   show("quiz");
-
-  // During topic practice, return to the topic list rather than the dashboard.
-  $("back").textContent = "← Back to Topics";
-  $("back").onclick = () => start(currentSubject.id, currentSubject.name);
 
   $("subject").textContent =
     subjectName + " — " + topicName;
