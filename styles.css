@@ -39,3 +39,20 @@
     filter:drop-shadow(0 12px 18px #18365c20);
   }
 }
+
+
+/* DESKTOP HERO LAYOUT: keep feature cards clear of student faces. */
+@media (min-width: 901px) {
+  .hero-card { min-height: 620px; padding-bottom: 34px; }
+  .hero-copy { max-width: 54%; }
+  .hero-lead { max-width: 100%; }
+  .hero-points {
+    grid-template-columns: 1fr;
+    max-width: 340px;
+    margin-top: 22px;
+    position: relative;
+    z-index: 4;
+  }
+  .hero-points div { padding: 11px 13px; }
+  .hero-art { width: 47%; max-width: 430px; right: 0; bottom: 0; }
+}
