@@ -857,11 +857,19 @@ const topicRows =
     $("closeProgress").onclick = () => {
       box.classList.add("hidden");
     };
-document.querySelectorAll(".practice-again-btn").forEach(btn => {
+
+document.querySelectorAll(
+  ".practice-again-btn, .recommended-practice-btn"
+).forEach(btn => {
   btn.onclick = async () => {
     const topicId = Number(btn.dataset.topicId);
     const subjectName = btn.dataset.subject;
     const topicName = btn.dataset.topicName;
+
+    if (!topicId || !subjectName || !topicName) {
+      console.error("Practice button is missing topic details.");
+      return;
+    }
 
     box.classList.add("hidden");
 
@@ -874,10 +882,11 @@ document.querySelectorAll(".practice-again-btn").forEach(btn => {
 
       $("quiz").classList.remove("hidden");
     } catch (e) {
-      console.error("Practice Again error:", e);
+      console.error("Practice button error:", e);
     }
   };
 });
+
   }   catch (e) {
     const box = $("progressPanel");
 
