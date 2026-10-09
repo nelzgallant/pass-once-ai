@@ -644,30 +644,47 @@ const topicRows =
     </div>
   `;
 
-    /* RECENT ACTIVITY */
+    /* ASSESSMENT HISTORY: latest 10 saved attempts */
 
     const recent =
       d.attempts
-        .slice(0, 5)
+        .slice(0, 10)
         .map(x => {
+          const isPeriodicTest = String(x.subject || "").toLowerCase().includes("periodic test");
           const topicName =
             x.topic_id !== null
               ? (d.byTopic[Number(x.topic_id)]?.name ||
                  `Topic ${x.topic_id}`)
-              : "Previous practice";
+              : (isPeriodicTest ? "Full assessment" : "General practice");
+          const total = Number(x.total || 0);
+          const score = Number(x.score || 0);
+          const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+          const dateLabel = x.created_at
+            ? new Date(x.created_at).toLocaleString(undefined, {
+                year: "numeric", month: "short", day: "numeric",
+                hour: "2-digit", minute: "2-digit"
+              })
+            : "Date unavailable";
 
           return `
-            <li>
-              <strong>
-                ${escapeHtml(x.subject || "Practice")}
-              </strong>
-              — ${escapeHtml(topicName)}
-              — ${Number(x.score || 0)}/${Number(x.total || 0)}
+            <li class="card" style="list-style:none;padding:12px;margin:10px 0">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+                <div>
+                  <strong>${escapeHtml(x.subject || "Practice")}</strong>
+                  <div class="muted" style="font-size:.88rem;margin-top:4px">${escapeHtml(topicName)}</div>
+                  <div class="muted" style="font-size:.82rem;margin-top:4px">${escapeHtml(dateLabel)}</div>
+                </div>
+                <div style="text-align:right;white-space:nowrap">
+                  <strong>${score}/${total}</strong>
+                  <div style="font-size:.9rem;color:${pct < 70 ? "#b45309" : "#2e7d32"};font-weight:700">${pct}%</div>
+                  <span class="muted" style="font-size:.78rem">${isPeriodicTest ? "Periodic test" : "Practice"}</span>
+                </div>
+              </div>
             </li>
           `;
         })
         .join("") ||
-      `<li>No recent practice yet.</li>`;
+      `<li class="muted" style="list-style:none">No assessments recorded yet. Complete a practice session or test to see it here.</li>`;
 
     const message =
       d.accuracy >= 80
@@ -808,8 +825,9 @@ const topicRows =
         ${topicRows}
 
         <h4 style="margin-top:22px">
-          🕘 Recent Activity
+          🧾 Assessment History
         </h4>
+        <p class="muted" style="margin-top:-8px">Your 10 most recent saved practice sessions and tests.</p>
 
         <ul
           style="
