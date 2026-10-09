@@ -1059,6 +1059,11 @@ async function start(subjectId, subjectName) {
   currentSubject = { id: subjectId, name: subjectName };
   currentTopic = null;
   show("quiz");
+
+  // On the topic-selection screen, let students return directly to Subjects.
+  $("back").textContent = "← Back to Subjects";
+  $("back").onclick = () => renderDash(true);
+
   $("subject").textContent = subjectName + " — Choose a Topic";
   $("count").textContent = "";
   $("bar").style.width = "0%";
@@ -1183,6 +1188,10 @@ async function startTopic(
   answered = false;
 
   show("quiz");
+
+  // During topic practice, return to the topic list rather than the dashboard.
+  $("back").textContent = "← Back to Topics";
+  $("back").onclick = () => start(currentSubject.id, currentSubject.name);
 
   $("subject").textContent =
     subjectName + " — " + topicName;
