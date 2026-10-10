@@ -1095,7 +1095,7 @@ async function openCurriculumTerm(termId, termName, subject, versionId) {
         currentSubject = { id: subject.id, name: subject.name };
         currentTopic = { id: topicId, name: btn.dataset.topicName };
         show("lessonView");
-        displayLesson(lesson, subject.name, btn.dataset.weekTitle, topicId, [lesson]);
+        displayLesson(lesson, subject.name, btn.dataset.weekTitle, topicId, mappedLessons);
       };
     });
   } catch (e) {
