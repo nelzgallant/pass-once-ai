@@ -55,11 +55,14 @@ function normalizeLevel(level) {
 function redirectUrl() {
   return window.location.origin + window.location.pathname;
 }
+
 async function getCurrentUser() {
-  const { data, error } = await sb.auth.getUser();
+  // A missing session is a normal signed-out state.
+  const { data, error } = await sb.auth.getSession();
   if (error) throw error;
-  return data.user;
+  return data.session?.user || null;
 }
+
 
 function setAuthMode(isSignup) {
   signup = isSignup;
