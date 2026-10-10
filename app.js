@@ -7,18 +7,19 @@ let signup = false,
   classRow = null;
 let currentSubject = null,
   currentTopic = null,
+  curriculumReturn = null,
   currentQuestions = [],
   currentAnswers = [],
   currentIndex = 0,
   currentScore = 0,
   answered = false;
-let periodicTestMode = false;
 
 function show(id) {
   [
     "auth",
     "setup",
     "subjectSelect",
+    "curriculumView",
     "dash",
     "parentDash",
     "quiz",
@@ -55,11 +56,9 @@ function redirectUrl() {
   return window.location.origin + window.location.pathname;
 }
 async function getCurrentUser() {
-  // A refresh may happen before a valid session exists. A missing session
-  // is a normal signed-out state, not an error to show on the login screen.
-  const { data, error } = await sb.auth.getSession();
+  const { data, error } = await sb.auth.getUser();
   if (error) throw error;
-  return data.session?.user || null;
+  return data.user;
 }
 
 function setAuthMode(isSignup) {
@@ -150,16 +149,6 @@ async function load() {
     else await renderDash();
   } catch (e) {
     const msg = e.message || "Could not load your account.";
-    // Treat an expired/missing auth session as signed out. Keep the login
-    // screen clean; show messages only for errors that need user attention.
-    if (/auth session missing|session missing|no session/i.test(msg)) {
-      user = null;
-      profile = null;
-      $("logout").classList.add("hidden");
-      show("auth");
-      message("");
-      return;
-    }
     if ($("setupMsg") && !$("setup").classList.contains("hidden"))
       setupMessage("❌ " + msg);
     else message(msg);
@@ -644,47 +633,30 @@ const topicRows =
     </div>
   `;
 
-    /* ASSESSMENT HISTORY: latest 10 saved attempts */
+    /* RECENT ACTIVITY */
 
     const recent =
       d.attempts
-        .slice(0, 10)
+        .slice(0, 5)
         .map(x => {
-          const isPeriodicTest = String(x.subject || "").toLowerCase().includes("periodic test");
           const topicName =
             x.topic_id !== null
               ? (d.byTopic[Number(x.topic_id)]?.name ||
                  `Topic ${x.topic_id}`)
-              : (isPeriodicTest ? "Full assessment" : "General practice");
-          const total = Number(x.total || 0);
-          const score = Number(x.score || 0);
-          const pct = total > 0 ? Math.round((score / total) * 100) : 0;
-          const dateLabel = x.created_at
-            ? new Date(x.created_at).toLocaleString(undefined, {
-                year: "numeric", month: "short", day: "numeric",
-                hour: "2-digit", minute: "2-digit"
-              })
-            : "Date unavailable";
+              : "Previous practice";
 
           return `
-            <li class="card" style="list-style:none;padding:14px;margin:10px 0">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-                <div style="flex:1;min-width:180px">
-                  <strong>${escapeHtml(x.subject || "Practice")}</strong>
-                  <div class="muted" style="font-size:.9rem;margin-top:5px">${escapeHtml(topicName)}</div>
-                  <div class="muted" style="font-size:.82rem;margin-top:6px">🗓️ ${escapeHtml(dateLabel)}</div>
-                </div>
-                <div style="text-align:right;white-space:nowrap">
-                  <strong style="font-size:1.05rem">${score}/${total}</strong>
-                  <div style="font-size:.95rem;color:${pct < 70 ? "#b45309" : "#2e7d32"};font-weight:700;margin-top:3px">${pct}%</div>
-                  <span class="muted" style="font-size:.78rem">${isPeriodicTest ? "Periodic Test" : "Topic Practice"}</span>
-                </div>
-              </div>
+            <li>
+              <strong>
+                ${escapeHtml(x.subject || "Practice")}
+              </strong>
+              — ${escapeHtml(topicName)}
+              — ${Number(x.score || 0)}/${Number(x.total || 0)}
             </li>
           `;
         })
         .join("") ||
-      `<li class="muted" style="list-style:none">No assessments recorded yet. Complete a practice session or test to see it here.</li>`;
+      `<li>No recent practice yet.</li>`;
 
     const message =
       d.accuracy >= 80
@@ -795,7 +767,6 @@ const topicRows =
           ${message}
         </p>
 
-
         <div
           class="card"
           style="
@@ -805,23 +776,13 @@ const topicRows =
           "
         >
           <strong>🎯 Personalised Recommendation</strong>
-          <p style="margin:7px 0 0">
+
+          <p
+            style="margin:7px 0 0"
+          >
             ${escapeHtml(d.recommendation)}
           </p>
-          ${
-            (d.attentionTopic || d.bestTopic)
-              ? `<button
-                  class="primary recommended-practice-btn"
-                  type="button"
-                  data-topic-id="${Number((d.attentionTopic || d.bestTopic).id)}"
-                  data-subject="${escapeHtml((d.attentionTopic || d.bestTopic).subject || "Mathematics")}"
-                  data-topic-name="${escapeHtml((d.attentionTopic || d.bestTopic).name)}"
-                  style="margin-top:12px"
-                >🎯 Practise This Topic</button>`
-              : ""
-          }
         </div>
-
 
         <h4 style="margin-top:20px">
           📚 Subject Progress
@@ -836,16 +797,13 @@ const topicRows =
         ${topicRows}
 
         <h4 style="margin-top:22px">
-          🧾 Assessment History
+          🕘 Recent Activity
         </h4>
-        <p class="muted" style="margin-top:-8px">Your 10 most recent saved practice sessions and tests.</p>
 
         <ul
           style="
-            list-style:none;
-            padding:0;
-            margin:0;
-            line-height:1.5
+            padding-left:20px;
+            line-height:1.9
           "
         >
           ${recent}
@@ -857,19 +815,11 @@ const topicRows =
     $("closeProgress").onclick = () => {
       box.classList.add("hidden");
     };
-
-document.querySelectorAll(
-  ".practice-again-btn, .recommended-practice-btn"
-).forEach(btn => {
+document.querySelectorAll(".practice-again-btn").forEach(btn => {
   btn.onclick = async () => {
     const topicId = Number(btn.dataset.topicId);
     const subjectName = btn.dataset.subject;
     const topicName = btn.dataset.topicName;
-
-    if (!topicId || !subjectName || !topicName) {
-      console.error("Practice button is missing topic details.");
-      return;
-    }
 
     box.classList.add("hidden");
 
@@ -882,11 +832,10 @@ document.querySelectorAll(
 
       $("quiz").classList.remove("hidden");
     } catch (e) {
-      console.error("Practice button error:", e);
+      console.error("Practice Again error:", e);
     }
   };
 });
-
   }   catch (e) {
     const box = $("progressPanel");
 
@@ -953,18 +902,10 @@ async function renderDash(openPractice = true) {
   $(
     "subjects"
   ).innerHTML = `<div class="card" style="margin-bottom:14px"><h3 style="margin:0 0 4px">📈 My Learning Progress</h3><p class="muted" style="margin:0 0 12px">See your real practice performance.</p><button class="primary" type="button" id="openProgress">View My Progress</button></div><div id="progressPanel" class="hidden"></div><h3 style="margin:18px 0 10px">Subjects</h3>${subjectCards}`;
-  const isJSS1 = normalizeLevel(profile?.level) === "JSS1";
-  const periodicTestCard = isJSS1 ? `
-    <div class="card" style="margin-top:16px;border:2px solid #0b57d0">
-      <h3 style="margin:0 0 6px">📝 JSS1 First Term Periodic Test</h3>
-      <p class="muted">Mathematics • 20 questions • Review your answers after submission.</p>
-      <button class="primary" type="button" id="startPeriodicTest">Start Periodic Test</button>
-      <p id="periodicTestMsg" class="muted" style="margin-bottom:0"></p>
-    </div>` : "";
-  $("practiceSubjects").innerHTML = subjectCards + periodicTestCard;
-  const periodicTestButton = $("startPeriodicTest");
-  if (periodicTestButton) periodicTestButton.onclick = startPeriodicTest;
+  $("practiceSubjects").innerHTML = subjectCards;
   $("openProgress").onclick = showStudentProgress;
+  const curriculumBtn = $("openCurriculum");
+  if (curriculumBtn) curriculumBtn.onclick = openCurriculum;
   const progressBtn = $("progress");
   if (progressBtn) progressBtn.onclick = showStudentProgress;
   document
@@ -975,6 +916,194 @@ async function renderDash(openPractice = true) {
     );
   if (openPractice) show("subjectSelect");
   else show("dash");
+}
+
+/* --------------------------------
+   CURRICULUM BROWSER
+   First release: JSS1 Mathematics
+-------------------------------- */
+async function openCurriculum() {
+  if (!classRow) classRow = await findClass();
+  if (!classRow) {
+    show("curriculumView");
+    $("curriculumContent").innerHTML = '<div class="card"><p class="muted">We could not identify your class. Please check your student profile.</p></div>';
+    return;
+  }
+
+  show("curriculumView");
+  $("curriculumContent").innerHTML = '<div class="card"><p>Loading your curriculum…</p></div>';
+  curriculumReturn = null;
+
+  try {
+    const { data: subject, error: subjectError } = await sb
+      .from("subjects")
+      .select("id,name")
+      .ilike("name", "Mathematics")
+      .limit(1)
+      .maybeSingle();
+    if (subjectError) throw subjectError;
+    if (!subject) throw new Error("Mathematics is not available in the subjects table yet.");
+
+    const { data: version, error: versionError } = await sb
+      .from("curriculum_versions")
+      .select("id,name,code")
+      .eq("is_current", true)
+      .limit(1)
+      .maybeSingle();
+    if (versionError) throw versionError;
+    if (!version) throw new Error("No current curriculum version is available.");
+
+    const { data: terms, error: termsError } = await sb
+      .from("curriculum_terms")
+      .select("id,name,term_number,class_id")
+      .eq("class_id", classRow.id)
+      .order("term_number");
+    if (termsError) throw termsError;
+
+    if (!(terms || []).length) {
+      $("curriculumContent").innerHTML = '<div class="card"><p class="muted">No terms have been configured for your class yet.</p></div>';
+      return;
+    }
+
+    const { data: allWeekly, error: weeklyError } = await sb
+      .from("curriculum_weekly_topics")
+      .select("id,curriculum_term_id,week_number,title,content_outline,source_reference")
+      .eq("curriculum_version_id", version.id)
+      .in("curriculum_term_id", terms.map(t => t.id))
+      .order("week_number");
+    if (weeklyError) throw weeklyError;
+
+    const weeklyByTerm = new Map();
+    (allWeekly || []).forEach(w => {
+      const key = Number(w.curriculum_term_id);
+      if (!weeklyByTerm.has(key)) weeklyByTerm.set(key, []);
+      weeklyByTerm.get(key).push(w);
+    });
+
+    $("curriculumContent").innerHTML = `
+      <div class="card" style="margin-bottom:14px">
+        <p class="muted" style="margin:0 0 5px">${escapeHtml(classRow.name)} • ${escapeHtml(subject.name)}</p>
+        <h3 style="margin:0">${escapeHtml(version.name || "Current Curriculum")}</h3>
+        <p class="muted" style="margin-bottom:0">Choose a term to see its weekly topics and available lessons.</p>
+      </div>
+      <div class="grid" id="curriculumTerms">
+        ${(terms || []).map(term => {
+          const count = (weeklyByTerm.get(Number(term.id)) || []).length;
+          const ready = count > 0;
+          return `<button class="card curriculum-term-btn" type="button" data-term-id="${Number(term.id)}" data-term-name="${escapeHtml(term.name)}" style="text-align:left;cursor:pointer;width:100%">
+            <strong>${escapeHtml(term.name)}</strong>
+            <p class="muted" style="margin:6px 0 0">${ready ? `${count} weekly topics available` : "Curriculum coming soon"}</p>
+          </button>`;
+        }).join("")}
+      </div>
+      <div id="curriculumWeeks" style="margin-top:18px"></div>`;
+
+    document.querySelectorAll(".curriculum-term-btn").forEach(btn => {
+      btn.onclick = () => openCurriculumTerm(
+        Number(btn.dataset.termId), btn.dataset.termName, subject, version.id
+      );
+    });
+  } catch (e) {
+    console.error("Curriculum loading error:", e);
+    $("curriculumContent").innerHTML = `<div class="card"><p>Could not load the curriculum.</p><p class="muted">${escapeHtml(e.message || "Please try again.")}</p><button class="ghost" id="retryCurriculum" type="button">Try again</button></div>`;
+    const retry = $("retryCurriculum");
+    if (retry) retry.onclick = openCurriculum;
+  }
+}
+
+async function openCurriculumTerm(termId, termName, subject, versionId) {
+  const weeksBox = $("curriculumWeeks");
+  weeksBox.innerHTML = '<div class="card"><p>Loading weekly topics…</p></div>';
+  curriculumReturn = { termId, termName, subject, versionId };
+
+  try {
+    const { data: weeklyTopics, error: weeklyError } = await sb
+      .from("curriculum_weekly_topics")
+      .select("id,curriculum_term_id,week_number,title,content_outline,source_reference")
+      .eq("curriculum_version_id", versionId)
+      .eq("curriculum_term_id", termId)
+      .order("week_number");
+    if (weeklyError) throw weeklyError;
+
+    if (!(weeklyTopics || []).length) {
+      weeksBox.innerHTML = `<div class="card"><h3>${escapeHtml(termName)}</h3><p class="muted">Curriculum coming soon. Weekly topics and lessons for this term have not been added yet.</p></div>`;
+      return;
+    }
+
+    const { data: links, error: linksError } = await sb
+      .from("curriculum_weekly_topic_lessons")
+      .select("weekly_topic_id,lesson_id,lesson_order")
+      .in("weekly_topic_id", weeklyTopics.map(w => w.id))
+      .order("lesson_order");
+    if (linksError) throw linksError;
+
+    const lessonIds = [...new Set((links || []).map(x => Number(x.lesson_id)))];
+    let lessons = [];
+    let topics = [];
+    if (lessonIds.length) {
+      const { data: lessonRows, error: lessonsError } = await sb
+        .from("lessons")
+        .select("id,topic_id,title,content,lesson_order")
+        .in("id", lessonIds);
+      if (lessonsError) throw lessonsError;
+      lessons = lessonRows || [];
+      const topicIdsForLessons = [...new Set(lessons.map(l => Number(l.topic_id)))];
+      if (topicIdsForLessons.length) {
+        const { data: topicRows, error: topicsError } = await sb
+          .from("topics")
+          .select("id,name,subject_id,class_id")
+          .in("id", topicIdsForLessons);
+        if (topicsError) throw topicsError;
+        topics = topicRows || [];
+      }
+    }
+
+    const lessonById = new Map(lessons.map(l => [Number(l.id), l]));
+    const topicById = new Map(topics.map(t => [Number(t.id), t]));
+    const cards = weeklyTopics.map(week => {
+      const weekLinks = (links || [])
+        .filter(link => Number(link.weekly_topic_id) === Number(week.id))
+        .sort((a, b) => Number(a.lesson_order) - Number(b.lesson_order));
+      const mappedLessons = weekLinks.map(link => {
+        const lesson = lessonById.get(Number(link.lesson_id));
+        if (!lesson) return null;
+        const topic = topicById.get(Number(lesson.topic_id));
+        if (!topic || Number(topic.subject_id) !== Number(subject.id)) return null;
+        return { ...lesson, topicName: topic.name, topicId: Number(topic.id) };
+      }).filter(Boolean);
+
+      return `<article class="card" style="margin-bottom:12px">
+        <div class="pill" style="display:inline-block">Week ${Number(week.week_number)}</div>
+        <h3 style="margin:10px 0 6px">${escapeHtml(week.title)}</h3>
+        ${week.content_outline ? `<p class="muted">${escapeHtml(week.content_outline)}</p>` : ""}
+        ${mappedLessons.length ? `<div style="display:grid;gap:9px;margin-top:12px">${mappedLessons.map(lesson => `
+          <div style="border:1px solid #e5eaf2;border-radius:12px;padding:12px">
+            <strong>📖 ${escapeHtml(lesson.title)}</strong>
+            <div style="margin-top:10px"><button class="primary curriculum-open-lesson" type="button" data-lesson-id="${Number(lesson.id)}" data-topic-id="${lesson.topicId}" data-topic-name="${escapeHtml(lesson.topicName)}" data-week-title="${escapeHtml(week.title)}">Open Lesson</button></div>
+          </div>`).join("")}</div>` : `<p class="muted" style="margin-bottom:0">Lesson content coming soon.</p>`}
+      </article>`;
+    }).join("");
+
+    weeksBox.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap"><h3 style="margin:0">${escapeHtml(termName)} — Weekly Topics</h3><span class="muted">${weeklyTopics.length} weeks</span></div>${cards}`;
+
+    weeksBox.querySelectorAll(".curriculum-open-lesson").forEach(btn => {
+      btn.onclick = () => {
+        const lessonId = Number(btn.dataset.lessonId);
+        const topicId = Number(btn.dataset.topicId);
+        const lesson = lessonById.get(lessonId);
+        if (!lesson) return;
+        currentSubject = { id: subject.id, name: subject.name };
+        currentTopic = { id: topicId, name: btn.dataset.topicName };
+        show("lessonView");
+        displayLesson(lesson, subject.name, btn.dataset.weekTitle, topicId, [lesson]);
+      };
+    });
+  } catch (e) {
+    console.error("Weekly curriculum error:", e);
+    weeksBox.innerHTML = `<div class="card"><p>Could not load weekly topics.</p><p class="muted">${escapeHtml(e.message || "Please try again.")}</p><button class="ghost" id="retryCurriculumTerm" type="button">Try again</button></div>`;
+    const retry = $("retryCurriculumTerm");
+    if (retry) retry.onclick = () => openCurriculumTerm(termId, termName, subject, versionId);
+  }
 }
 
 async function generateParentCode() {
@@ -1229,7 +1358,6 @@ async function startTopic(
   topicName,
   lessonId = null
 ) {
-  periodicTestMode = false;
   currentTopic = {
     id: topicId,
     name: topicName
@@ -1595,47 +1723,6 @@ async function topicIds(subjectId, classId) {
   if (error) throw error;
   return (data || []).map((x) => x.id);
 }
-async function startPeriodicTest() {
-  periodicTestMode = true;
-  currentSubject = { id: 1, name: "Mathematics — JSS1 First Term Periodic Test" };
-  currentTopic = { id: null, name: "First Term Periodic Test" };
-  currentQuestions = [];
-  currentAnswers = [];
-  currentIndex = 0;
-  currentScore = 0;
-  answered = false;
-
-  show("quiz");
-  $("subject").textContent = currentSubject.name;
-  $("question").textContent = "Loading periodic-test questions…";
-  $("options").innerHTML = "";
-  $("explain").classList.add("hidden");
-  $("next").classList.add("hidden");
-  ensureSubmitButton().classList.add("hidden");
-
-  try {
-    const { data, error } = await sb
-      .from("questions")
-      .select("id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type")
-      .eq("exam_type", "JSS1_FIRST_TERM_PERIODIC_TEST")
-      .eq("language_code", "en")
-      .order("id");
-    if (error) throw error;
-    if (!data || data.length === 0) {
-      $("question").textContent = "The periodic test is not available yet. Please try again later.";
-      return;
-    }
-    currentQuestions = data;
-    currentAnswers = data.map(() => null);
-    currentIndex = 0;
-    renderQ();
-  } catch (e) {
-    $("question").textContent = "Could not load the periodic test.";
-    $("explain").textContent = e.message || "Please try again.";
-    $("explain").classList.remove("hidden");
-  }
-}
-
 function ensureSubmitButton() {
   let b = $("submitQuiz");
   if (!b) {
@@ -1752,7 +1839,7 @@ async function submitQuiz() {
      .insert({
   user_id: user.id,
   subject: currentSubject.name,
-  topic_id: periodicTestMode ? null : Number(currentTopic.id),
+  topic_id: Number(currentTopic.id),
   score: currentScore,
   total: currentQuestions.length,
 });
@@ -1775,19 +1862,7 @@ async function submitQuiz() {
           right >= 0
             ? q[["option_a", "option_b", "option_c", "option_d"][right]] || ""
             : "";
-
-const feedbackText = q.explanation
-  ? escapeHtml(q.explanation)
-  : "Review the correct answer and your class notes to understand this question.";
-
-return `<div class="card" style="margin-top:12px;padding:14px">
-  <strong>${i + 1}. ${escapeHtml(q.question)}</strong>
-  <p>${status}</p>
-  <p><b>Your answer:</b> ${escapeHtml(chosenText || "No answer")}</p>
-  <p><b>Correct answer:</b> ${escapeHtml(correctText || "Not available")}</p>
-  <p class="muted"><b>Learning feedback:</b> ${feedbackText}</p>
-</div>`;
-
+        return `<div class="card" style="margin-top:12px;padding:14px"><strong>${ i + 1 }. ${escapeHtml( q.question )}</strong><p>${status}</p><p><b>Your answer:</b> ${escapeHtml( chosenText || "No answer" )}</p><p><b>Correct answer:</b> ${escapeHtml(correctText)}</p>${ q.explanation ? `<p class="muted"><b>Explanation:</b> ${escapeHtml( q.explanation )}</p>` : "" }</div>`;
       })
       .join("");
     $("question").textContent = "Practice complete! 🎉";
@@ -1796,14 +1871,8 @@ return `<div class="card" style="margin-top:12px;padding:14px">
     $("next").classList.add("hidden");
     if (submitBtn) submitBtn.classList.add("hidden");
     $("resultDash").onclick = () => renderDash(false);
-    $("resultTopics").onclick = () => {
-      if (periodicTestMode) {
-        periodicTestMode = false;
-        renderDash(true);
-      } else {
-        start(currentSubject.id, currentSubject.name);
-      }
-    };
+    $("resultTopics").onclick = () =>
+      start(currentSubject.id, currentSubject.name);
   } catch (e) {
     $(
       "explain"
@@ -2234,10 +2303,17 @@ $("practiceLesson").onclick = async () => {
 };
 
   $("backLesson").onclick = () => {
-    start(
-      currentSubject.id,
-      currentSubject.name
-    );
+    if (curriculumReturn) {
+      show("curriculumView");
+      openCurriculumTerm(
+        curriculumReturn.termId,
+        curriculumReturn.termName,
+        curriculumReturn.subject,
+        curriculumReturn.versionId
+      );
+      return;
+    }
+    start(currentSubject.id, currentSubject.name);
   };
 
   /*
