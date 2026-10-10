@@ -2409,8 +2409,8 @@ if (lessons.length > 1) {
       displayLesson(
         nextLesson,
         subjectName,
-        topicName,
-        topicId,
+        nextLesson.topicName || topicName,
+        Number(nextLesson.topicId || topicId),
         lessons
       );
     };
