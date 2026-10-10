@@ -1062,6 +1062,7 @@ async function openCurriculumTerm(termId, termName, subject, versionId) {
     }
 
     const lessonById = new Map(lessons.map(l => [Number(l.id), l]));
+    const lessonsByWeek = new Map();
     const topicById = new Map(topics.map(t => [Number(t.id), t]));
     const cards = weeklyTopics.map(week => {
       const weekLinks = (links || [])
@@ -1074,7 +1075,7 @@ async function openCurriculumTerm(termId, termName, subject, versionId) {
         if (!topic || Number(topic.subject_id) !== Number(subject.id)) return null;
         return { ...lesson, topicName: topic.name, topicId: Number(topic.id) };
       }).filter(Boolean);
-
+      lessonsByWeek.set(Number(week.id), mappedLessons);
       return `<article class="card" style="margin-bottom:12px">
         <div class="pill" style="display:inline-block">Week ${Number(week.week_number)}</div>
         <h3 style="margin:10px 0 6px">${escapeHtml(week.title)}</h3>
