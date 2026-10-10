@@ -1083,7 +1083,7 @@ async function openCurriculumTerm(termId, termName, subject, versionId) {
         ${mappedLessons.length ? `<div style="display:grid;gap:9px;margin-top:12px">${mappedLessons.map(lesson => `
           <div style="border:1px solid #e5eaf2;border-radius:12px;padding:12px">
             <strong>📖 ${escapeHtml(lesson.title)}</strong>
-            <div style="margin-top:10px"><button class="primary curriculum-open-lesson" type="button" data-lesson-id="${Number(lesson.id)}" data-topic-id="${lesson.topicId}" data-topic-name="${escapeHtml(lesson.topicName)}" data-week-title="${escapeHtml(week.title)}">Open Lesson</button></div>
+            <div style="margin-top:10px"><button class="primary curriculum-open-lesson" type="button" data-lesson-id="${Number(lesson.id)}" data-week-id="${Number(week.id)}" data-topic-id="${lesson.topicId}" data-topic-name="${escapeHtml(lesson.topicName)}" data-week-title="${escapeHtml(week.title)}">Open Lesson</button></div>
           </div>`).join("")}</div>` : `<p class="muted" style="margin-bottom:0">Lesson content coming soon.</p>`}
       </article>`;
     }).join("");
@@ -1099,7 +1099,8 @@ async function openCurriculumTerm(termId, termName, subject, versionId) {
         currentSubject = { id: subject.id, name: subject.name };
         currentTopic = { id: topicId, name: btn.dataset.topicName };
         show("lessonView");
-        displayLesson(lesson, subject.name, btn.dataset.weekTitle, topicId, [lesson]);
+      const lessons = lessonsByWeek.get(Number(btn.dataset.weekId)) || [lesson];
+displayLesson(lesson, subject.name, btn.dataset.weekTitle, topicId, lessons);
       };
     });
   } catch (e) {
