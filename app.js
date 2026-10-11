@@ -680,6 +680,42 @@ const previousPct =
             • ${v.score}/${v.total} correct
           </span>
 
+<div
+  class="muted"
+  style="margin-top:8px;font-size:0.9rem;line-height:1.7"
+>
+  <div>
+    Latest practice:
+    <strong>${latestPct !== null ? `${latestPct}%` : "—"}</strong>
+  </div>
+
+  ${
+    previousPct !== null
+      ? `
+        <div>
+          Previous practice:
+          <strong>${previousPct}%</strong>
+        </div>
+
+        <div>
+          ${
+            latestPct > previousPct
+              ? `📈 Improved by ${latestPct - previousPct} percentage points`
+              : latestPct < previousPct
+              ? `📉 Decreased by ${previousPct - latestPct} percentage points`
+              : "➡️ No change from the previous practice"
+          }
+        </div>
+      `
+      : `
+        <div>
+          Complete another practice session
+          to track your improvement.
+        </div>
+      `
+  }
+</div>
+
           <div style="margin-top:12px">
             <button
               class="primary practice-again-btn"
