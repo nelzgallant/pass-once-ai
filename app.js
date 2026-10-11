@@ -644,13 +644,15 @@ async function showStudentProgress() {
       `
   }
 </div>
-        .join("") ||
-      `
-        <p class="muted">
-          No practice recorded yet.
-          Start a topic to begin building your progress.
-        </p>
       `;
+    })
+    .join("") ||
+  `
+    <p class="muted">
+      No practice recorded yet.
+      Start a topic to begin building your progress.
+    </p>
+  `;
 
     /* TOPIC CARDS */
 
