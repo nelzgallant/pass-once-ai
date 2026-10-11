@@ -550,6 +550,19 @@ async function showStudentProgress() {
       d.subjectStats
         .map(v => {
           const pct = v.percentage;
+            const latestPct =
+    Number(v.latestTotal) > 0
+      ? Math.round(
+          (Number(v.latestScore) / Number(v.latestTotal)) * 100
+        )
+      : null;
+
+  const previousPct =
+    Number(v.previousTotal) > 0
+      ? Math.round(
+          (Number(v.previousScore) / Number(v.previousTotal)) * 100
+        )
+      : null;
 
           return `
             <div
@@ -592,29 +605,33 @@ async function showStudentProgress() {
                 • ${v.score}/${v.total} correct
               </span>
               
+
+
 <div
   class="muted"
   style="margin-top:8px;font-size:0.9rem;line-height:1.7"
 >
   <div>
     Latest practice:
-    <strong>${v.latestPercentage}%</strong>
+    <strong>
+      ${latestPct !== null ? `${latestPct}%` : "—"}
+    </strong>
   </div>
 
   ${
-    v.previousPercentage !== null
+    previousPct !== null
       ? `
         <div>
           Previous practice:
-          <strong>${v.previousPercentage}%</strong>
+          <strong>${previousPct}%</strong>
         </div>
 
         <div>
           ${
-            v.trend > 0
-              ? `📈 Improved by ${v.trend} percentage points`
-              : v.trend < 0
-              ? `📉 Decreased by ${Math.abs(v.trend)} percentage points`
+            latestPct > previousPct
+              ? `📈 Improved by ${latestPct - previousPct} percentage points`
+              : latestPct < previousPct
+              ? `📉 Decreased by ${previousPct - latestPct} percentage points`
               : "➡️ No change from the previous practice"
           }
         </div>
@@ -627,10 +644,6 @@ async function showStudentProgress() {
       `
   }
 </div>
-
-            </div>
-          `;
-        })
         .join("") ||
       `
         <p class="muted">
