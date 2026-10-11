@@ -542,19 +542,19 @@ async function showStudentProgress() {
       d.subjectStats
         .map(v => {
           const pct = v.percentage;
-            const latestPct =
-    Number(v.latestTotal) > 0
-      ? Math.round(
-          (Number(v.latestScore) / Number(v.latestTotal)) * 100
-        )
-      : null;
+const latestPct =
+  Number(v.latestTotal) > 0
+    ? Math.round(
+        (Number(v.latestScore) / Number(v.latestTotal)) * 100
+      )
+    : null;
 
-  const previousPct =
-    Number(v.previousTotal) > 0
-      ? Math.round(
-          (Number(v.previousScore) / Number(v.previousTotal)) * 100
-        )
-      : null;
+const previousPct =
+  Number(v.previousTotal) > 0
+    ? Math.round(
+        (Number(v.previousScore) / Number(v.previousTotal)) * 100
+      )
+    : null;
 
           return `
             <div
