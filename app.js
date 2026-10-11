@@ -399,17 +399,7 @@ const topicStats = Object.values(byTopic)
   })
   .sort((a, b) => b.percentage - a.percentage);
 
-console.log(
-  "Pass Once AI topic progress check:",
-  topicStats.map(t => ({
-    topic: t.name,
-    attempts: t.attempts,
-    latestScore: t.latestScore,
-    latestTotal: t.latestTotal,
-    latestPercentage: t.latestPercentage,
-    previousPercentage: t.previousPercentage
-  }))
-);
+
 
   const bestTopic =
     topicStats.length ? topicStats[0] : null;
@@ -627,8 +617,6 @@ const previousPct =
         (Number(v.previousScore) / Number(v.previousTotal)) * 100
       )
     : null;
-      console.log("Topic card data:", v.name, v.latestPercentage, v.previousPercentage);
-
       return `
     <div
   class="card"
