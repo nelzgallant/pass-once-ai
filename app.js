@@ -603,20 +603,18 @@ async function showStudentProgress() {
   class="muted"
   style="margin-top:8px;font-size:0.9rem;line-height:1.7"
 >
-  <div>
-    Latest practice:
-    <strong>
-      ${latestPct !== null ? `${latestPct}%` : "—"}
-    </strong>
-  </div>
+<div>
+  Latest practice:
+  <strong>${latestPct !== null ? `${latestPct}%` : "—"}</strong>
+</div>
 
   ${
     previousPct !== null
       ? `
-        <div>
-          Previous practice:
-          <strong>${previousPct}%</strong>
-        </div>
+<div>
+  Previous practice:
+  <strong>${previousPct !== null ? `${previousPct}%` : "—"}</strong>
+</div>
 
         <div>
           ${
@@ -651,7 +649,21 @@ async function showStudentProgress() {
 const topicRows =
   d.topicStats
     .map(v => {
-      const pct = v.percentage;console.log("Topic card data:", v.name, v.latestPercentage, v.previousPercentage);
+      const pct = v.percentage;
+      const latestPct =
+  Number(v.latestTotal) > 0
+    ? Math.round(
+        (Number(v.latestScore) / Number(v.latestTotal)) * 100
+      )
+    : null;
+
+const previousPct =
+  Number(v.previousTotal) > 0
+    ? Math.round(
+        (Number(v.previousScore) / Number(v.previousTotal)) * 100
+      )
+    : null;
+      console.log("Topic card data:", v.name, v.latestPercentage, v.previousPercentage);
 
       return `
         <div
