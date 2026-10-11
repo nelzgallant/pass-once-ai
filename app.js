@@ -604,23 +604,26 @@ async function showStudentProgress() {
   style="margin-top:8px;font-size:0.9rem;line-height:1.7"
 >
 
-        <div>
-          ${
-            latestPct > previousPct
-              ? `📈 Improved by ${latestPct - previousPct} percentage points`
-              : latestPct < previousPct
-              ? `📉 Decreased by ${previousPct - latestPct} percentage points`
-              : "➡️ No change from the previous practice"
-          }
-        </div>
-      `
-      : `
-        <div>
-          Complete another practice session
-          to track your improvement.
-        </div>
-      `
-  }
+${
+  previousPct !== null
+    ? `
+      <div>
+        ${
+          latestPct > previousPct
+            ? `📈 Improved by ${latestPct - previousPct} percentage points`
+            : latestPct < previousPct
+            ? `📉 Decreased by ${previousPct - latestPct} percentage points`
+            : "➡️ No change from the previous practice"
+        }
+      </div>
+    `
+    : `
+      <div>
+        Complete another practice session
+        to track your improvement.
+      </div>
+    `
+}
 </div>
       `;
     })
