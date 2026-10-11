@@ -716,7 +716,7 @@ const previousPct =
   }
 </div>
 
-          <div style="margin-top:12px">
+          <div style="margin-top:8px">
             <button
               class="primary practice-again-btn"
               type="button"
