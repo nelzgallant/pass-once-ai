@@ -854,6 +854,39 @@ document.querySelectorAll(".practice-again-btn").forEach(btn => {
     }
   };
 });
+  
+const recommendedPracticeBtn = $("practiseRecommendedTopic");
+
+if (recommendedPracticeBtn && d.attentionTopic) {
+  recommendedPracticeBtn.onclick = async () => {
+    const topic = d.attentionTopic;
+
+    if (!topic.id || !topic.subject || !topic.name) {
+      alert("Topic details are incomplete. Please try again.");
+      return;
+    }
+
+    try {
+      recommendedPracticeBtn.disabled = true;
+      recommendedPracticeBtn.textContent = "Loading topic…";
+
+      await startTopic(
+        Number(topic.id),
+        topic.subject,
+        topic.name
+      );
+
+      $("quiz").classList.remove("hidden");
+    } catch (e) {
+      console.error("Recommended topic practice error:", e);
+      alert("Could not open this topic. Please try again.");
+    } finally {
+      recommendedPracticeBtn.disabled = false;
+      recommendedPracticeBtn.textContent = "🎯 Practise This Topic";
+    }
+  };
+}
+  
   }   catch (e) {
     const box = $("progressPanel");
 
