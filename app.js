@@ -1049,9 +1049,67 @@ async function renderDash(openPractice = true) {
           `<button class="card subject" data-id="${ s.id }" data-name="${escapeHtml( s.name )}" type="button" style="cursor:pointer;text-align:left;width:100%;min-height:92px;font-size:1.05rem">📚 <strong>${escapeHtml( s.name )}</strong><small style="display:block;margin-top:6px;opacity:.7">Tap to start practice</small></button>`
       )
       .join("") || `<div class="card">No subjects found yet.</div>`;
-  $(
-    "subjects"
-  ).innerHTML = `<div class="card" style="margin-bottom:14px"><h3 style="margin:0 0 4px">📈 My Learning Progress</h3><p class="muted" style="margin:0 0 12px">See your real practice performance.</p><button class="primary" type="button" id="openProgress">View My Progress</button></div><div id="progressPanel" class="hidden"></div><h3 style="margin:18px 0 10px">Subjects</h3>${subjectCards}`;
+
+$("subjects").innerHTML = `
+  <div style="
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:18px;
+    width:100%;
+    min-width:0;
+    box-sizing:border-box;
+  ">
+    <div
+      class="card"
+      style="
+        width:100%;
+        min-width:0;
+        box-sizing:border-box;
+        margin:0;
+        padding:18px;
+      "
+    >
+      <h3 style="margin:0 0 4px">
+        📈 My Learning Progress
+      </h3>
+
+      <p class="muted" style="margin:0 0 12px">
+        See your real practice performance.
+      </p>
+
+      <button
+        class="primary"
+        type="button"
+        id="openProgress"
+        style="width:100%"
+      >
+        View My Progress
+      </button>
+    </div>
+
+    <div id="progressPanel" class="hidden"></div>
+
+    <div style="width:100%;min-width:0">
+      <h3 style="margin:0 0 12px">
+        📚 Your Subjects
+      </h3>
+
+      <div style="
+        display:grid;
+        grid-template-columns:repeat(
+          auto-fit,
+          minmax(min(100%, 250px), 1fr)
+        );
+        gap:14px;
+        width:100%;
+        min-width:0;
+      ">
+        ${subjectCards}
+      </div>
+    </div>
+  </div>
+`;
+
   $("practiceSubjects").innerHTML = subjectCards;
   $("openProgress").onclick = showStudentProgress;
   const curriculumBtn = $("openCurriculum");
