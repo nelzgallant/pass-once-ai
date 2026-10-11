@@ -697,7 +697,7 @@ const previousPct =
           <strong>${previousPct}%</strong>
         </div>
 
-        <div>
+        <div style="margin-top:4px;max-width:100%;overflow-wrap:anywhere">
           ${
             latestPct > previousPct
               ? `📈 Improved by ${latestPct - previousPct} percentage points`
