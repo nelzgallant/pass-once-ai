@@ -596,9 +596,9 @@ const previousPct =
                 practice session${v.attempts === 1 ? "" : "s"}
                 • ${v.score}/${v.total} correct
               </span>
+            </div>
+          `;
               
-
-      `;
     })
     .join("") ||
   `
@@ -630,10 +630,17 @@ const previousPct =
       console.log("Topic card data:", v.name, v.latestPercentage, v.previousPercentage);
 
       return `
-        <div
-          class="card"
-          style="padding:14px;margin-top:10px"
-        >
+    <div
+  class="card"
+  style="
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    box-sizing:border-box;
+    padding:14px;
+    margin-top:10px;
+  "
+>
           <div
             style="
               display:flex;
