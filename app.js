@@ -778,13 +778,28 @@ const topicRows =
             background:#f7fbff
           "
         >
-          <strong>🎯 Personalised Recommendation</strong>
 
-          <p
-            style="margin:7px 0 0"
-          >
-            ${escapeHtml(d.recommendation)}
-          </p>
+<strong>🎯 Personalised Recommendation</strong>
+
+<p style="margin:7px 0 0">
+  ${escapeHtml(d.recommendation)}
+</p>
+
+${
+  d.attentionTopic
+    ? `
+      <button
+        class="primary"
+        type="button"
+        id="practiseRecommendedTopic"
+        style="margin-top:12px;width:100%"
+      >
+        🎯 Practise This Topic
+      </button>
+    `
+    : ""
+}
+
         </div>
 
         <h4 style="margin-top:20px">
