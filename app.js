@@ -399,7 +399,17 @@ const topicStats = Object.values(byTopic)
   })
   .sort((a, b) => b.percentage - a.percentage);
 
-
+console.log(
+  "Pass Once AI topic progress check:",
+  topicStats.map(t => ({
+    topic: t.name,
+    attempts: t.attempts,
+    latestScore: t.latestScore,
+    latestTotal: t.latestTotal,
+    latestPercentage: t.latestPercentage,
+    previousPercentage: t.previousPercentage
+  }))
+);
 
   const bestTopic =
     topicStats.length ? topicStats[0] : null;
