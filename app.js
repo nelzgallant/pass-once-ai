@@ -331,45 +331,93 @@ async function getStudentProgressData() {
     topicNames[Number(topic.id)] = topic.name;
   }
 
-  const byTopic = {};
 
-  for (const item of a) {
-    if (item.topic_id === null) continue;
+const byTopic = {};
 
-    const topicId = Number(item.topic_id);
+for (const item of a) {
+  if (item.topic_id === null) continue;
 
-    if (!byTopic[topicId]) {
-      byTopic[topicId] = {
-        id: topicId,
-        name: topicNames[topicId] || `Topic ${topicId}`,
-        subject: item.subject || "Other",
-        score: 0,
-        total: 0,
-        attempts: 0,
-        last: item.created_at
-      };
-    }
+  const topicId = Number(item.topic_id);
 
-    byTopic[topicId].score += Number(item.score || 0);
-    byTopic[topicId].total += Number(item.total || 0);
-    byTopic[topicId].attempts++;
+  if (!byTopic[topicId]) {
+    byTopic[topicId] = {
+      id: topicId,
+      name: topicNames[topicId] || `Topic ${topicId}`,
+      subject: item.subject || "Other",
+      score: 0,
+      total: 0,
+      attempts: 0,
+      last: item.created_at,
 
-    if (
-      new Date(item.created_at) >
-      new Date(byTopic[topicId].last || 0)
-    ) {
-      byTopic[topicId].last = item.created_at;
-    }
+      // Most recent practice
+      latestScore: Number(item.score || 0),
+      latestTotal: Number(item.total || 0),
+      latestAt: item.created_at,
+
+      // Previous practice
+      previousScore: null,
+      previousTotal: null,
+      previousAt: null
+    };
+  } else if (byTopic[topicId].attempts === 1) {
+    // The query is ordered newest first, so this
+    // is the previous attempt for this topic.
+    byTopic[topicId].previousScore =
+      Number(item.score || 0);
+
+    byTopic[topicId].previousTotal =
+      Number(item.total || 0);
+
+    byTopic[topicId].previousAt =
+      item.created_at;
   }
 
-  const topicStats = Object.values(byTopic)
-    .map(v => ({
+  byTopic[topicId].score += Number(item.score || 0);
+  byTopic[topicId].total += Number(item.total || 0);
+  byTopic[topicId].attempts++;
+
+  if (
+    new Date(item.created_at) >
+    new Date(byTopic[topicId].last || 0)
+  ) {
+    byTopic[topicId].last = item.created_at;
+  }
+}
+
+const topicStats = Object.values(byTopic)
+  .map(v => {
+    const latestPercentage = v.latestTotal
+      ? Math.round(
+          (v.latestScore / v.latestTotal) * 100
+        )
+      : 0;
+
+    const previousPercentage =
+      v.previousTotal !== null && v.previousTotal > 0
+        ? Math.round(
+            (v.previousScore / v.previousTotal) * 100
+          )
+        : null;
+
+    return {
       ...v,
+
+      // Overall performance across all attempts
       percentage: v.total
         ? Math.round((v.score / v.total) * 100)
-        : 0
-    }))
-    .sort((a, b) => b.percentage - a.percentage);
+        : 0,
+
+      latestPercentage,
+      previousPercentage,
+
+      // Change in percentage points
+      trend: previousPercentage !== null
+        ? latestPercentage - previousPercentage
+        : null
+    };
+  })
+  .sort((a, b) => b.percentage - a.percentage);
+
 
   const bestTopic =
     topicStats.length ? topicStats[0] : null;
