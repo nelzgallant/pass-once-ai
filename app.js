@@ -603,18 +603,6 @@ async function showStudentProgress() {
   class="muted"
   style="margin-top:8px;font-size:0.9rem;line-height:1.7"
 >
-<div>
-  Latest practice:
-  <strong>${latestPct !== null ? `${latestPct}%` : "—"}</strong>
-</div>
-
-  ${
-    previousPct !== null
-      ? `
-<div>
-  Previous practice:
-  <strong>${previousPct !== null ? `${previousPct}%` : "—"}</strong>
-</div>
 
         <div>
           ${
