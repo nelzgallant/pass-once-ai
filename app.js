@@ -651,7 +651,7 @@ async function showStudentProgress() {
 const topicRows =
   d.topicStats
     .map(v => {
-      const pct = v.percentage;
+      const pct = v.percentage;console.log("Topic card data:", v.name, v.latestPercentage, v.previousPercentage);
 
       return `
         <div
