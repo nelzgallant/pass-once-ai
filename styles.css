@@ -114,18 +114,15 @@
 }
 
 
-/* Tim: responsive positioning for Pass Once AI */
 
-/* Desktop: place Tim above the student image */
+/* Tim's responsive position */
+
+/* Desktop: Tim sits above the students */
 @media (min-width: 901px) {
-  .hero-card {
-    position: relative;
-  }
-
-  .hero-copy .tim-welcome {
+  .hero-card .tim-welcome {
     position: absolute;
-    top: 0;
-    left: calc(100% + 30px);
+    top: 28px;
+    right: 24px;
     width: 300px;
     max-width: 300px;
     margin: 0;
@@ -141,28 +138,61 @@
     box-shadow: 0 8px 24px rgba(20, 38, 75, 0.08);
   }
 
-  .hero-copy .tim-avatar {
-    flex-shrink: 0;
+  .hero-card .tim-avatar {
     width: 44px;
     height: 44px;
     font-size: 26px;
+    flex-shrink: 0;
   }
 
-  .hero-copy .tim-label {
+  .hero-card .tim-label {
     font-size: 9px;
   }
 
-  .hero-copy .tim-intro h3 {
+  .hero-card .tim-intro h3 {
     margin: 4px 0;
     font-size: 16px;
   }
 
-  .hero-copy .tim-intro p {
+  .hero-card .tim-intro p {
     margin: 0;
     font-size: 12px;
     line-height: 1.4;
   }
 }
+
+/* Phone and tablet: Tim follows the headline and description */
+@media (max-width: 900px) {
+  .hero-card .tim-welcome {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    margin: 18px 0 0;
+    padding: 12px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 3;
+  }
+
+  .hero-card .tim-avatar {
+    width: 46px;
+    height: 46px;
+    font-size: 28px;
+    flex-shrink: 0;
+  }
+
+  .hero-card .tim-intro h3 {
+    font-size: 17px;
+  }
+
+  .hero-card .tim-intro p {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+}
+
 
 /* Phone and tablet: place Tim below the headline */
 @media (max-width: 900px) {
