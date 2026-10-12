@@ -117,16 +117,15 @@
   }
 
 
+
 .hero-card .tim-welcome {
   position: absolute;
-
-top: 420px;
-right: 24px;
-bottom: auto;
-width: 340px;
-max-width: 340px;
-
+  top: 390px;
+  right: 24px;
+  bottom: auto;
   left: auto;
+  width: 340px;
+  max-width: 340px;
   margin: 0;
   padding: 16px;
   box-sizing: border-box;
@@ -137,6 +136,7 @@ max-width: 340px;
   color: #14264b;
   box-shadow: 0 8px 24px rgba(20, 38, 75, 0.08);
 }
+
 
 
   .hero-card .tim-avatar {
