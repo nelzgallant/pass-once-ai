@@ -233,16 +233,6 @@
   margin-bottom: 0;
 }
 
-@media (min-width: 901px) {
-  .hero-card .tim-welcome {
-    display: block;
-  }
-
-  .hero-card .tim-avatar {
-    float: left;
-    margin: 0 10px 6px 0;
-  }
-}
 
 
 
