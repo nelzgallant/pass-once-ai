@@ -120,9 +120,9 @@
 .hero-card .tim-welcome {
   position: absolute;
 
-top: auto;
+top: 420px;
 right: 24px;
-bottom: 24px;
+bottom: auto;
 width: 340px;
 max-width: 340px;
 
