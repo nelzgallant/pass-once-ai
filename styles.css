@@ -116,23 +116,25 @@
     position: relative;
   }
 
-  .hero-card .tim-welcome {
-    position: absolute;
-    top: -20px;
-    right: -180px;
-    left: auto;
-    width: 300px;
-    max-width: 300px;
-    margin: 0;
-    padding: 16px;
-    box-sizing: border-box;
-    display: block;
-    z-index: 5;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.96);
-    color: #14264b;
-    box-shadow: 0 8px 24px rgba(20, 38, 75, 0.08);
-  }
+
+.hero-card .tim-welcome {
+  position: absolute;
+  top: -75px;
+  right: -40px;
+  left: auto;
+  width: 340px;
+  max-width: 340px;
+  margin: 0;
+  padding: 16px;
+  box-sizing: border-box;
+  display: block;
+  z-index: 5;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #14264b;
+  box-shadow: 0 8px 24px rgba(20, 38, 75, 0.08);
+}
+
 
   .hero-card .tim-avatar {
     float: left;
