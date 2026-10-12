@@ -234,6 +234,61 @@
 }
 
 
+/* Keep Tim's question box compact and attached to Tim */
+.hero-card .tim-welcome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.hero-card .tim-welcome .tim-avatar {
+  flex: 0 0 44px;
+}
+
+.hero-card .tim-welcome .tim-intro {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.hero-card .tim-welcome .tim-question-box {
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.hero-card .tim-question-box textarea {
+  width: 100%;
+  min-height: 76px;
+  max-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.hero-card .tim-question-box button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+@media (min-width: 901px) {
+  .hero-card .tim-welcome {
+    display: block;
+  }
+
+  .hero-card .tim-welcome .tim-avatar {
+    float: left;
+    margin: 0 10px 6px 0;
+  }
+
+  .hero-card .tim-welcome .tim-question-box {
+    clear: both;
+  }
+}
+
+
+
 
 
 
