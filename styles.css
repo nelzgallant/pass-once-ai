@@ -190,6 +190,60 @@
   }
 }
 
+/* Tim's interactive question box */
+.tim-question-box {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.tim-question-box label {
+  display: block;
+  margin: 8px 0;
+  font-size: 13px;
+  font-weight: 750;
+  color: #14264b;
+}
+
+.tim-question-box textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #ccd6e3;
+  border-radius: 11px;
+  background: #fff;
+  color: #14213d;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.tim-question-box textarea:focus {
+  outline: none;
+  border-color: #0b57d0;
+  box-shadow: 0 0 0 3px #0b57d018;
+}
+
+.tim-question-box .primary {
+  margin-top: 10px;
+}
+
+.tim-question-box .auth-msg {
+  margin-bottom: 0;
+}
+
+@media (min-width: 901px) {
+  .hero-card .tim-welcome {
+    display: block;
+  }
+
+  .hero-card .tim-avatar {
+    float: left;
+    margin: 0 10px 6px 0;
+  }
+}
+
 
 
 
