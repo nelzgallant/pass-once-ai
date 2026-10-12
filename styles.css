@@ -56,3 +56,59 @@
 /* Draw the Nigerian flag consistently across desktop browsers, including Windows. */
 .nigeria-flag{display:inline-block;width:21px;height:14px;flex:0 0 21px;margin-right:3px;border:1px solid #d7e3ef;border-radius:2px;background:linear-gradient(to right,#008751 0 33.333%,#ffffff 33.333% 66.666%,#008751 66.666% 100%);vertical-align:-2px;}
 .hero-card .pill{gap:4px;white-space:nowrap;}
+
+
+/* Pass Once AI — Tim welcome card */
+.tim-welcome {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 22px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+}
+
+.tim-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #ffffff;
+  font-size: 32px;
+  animation: timWave 2.5s ease-in-out infinite;
+}
+
+.tim-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  opacity: 0.8;
+}
+
+.tim-intro h3 {
+  margin: 5px 0;
+  font-size: 19px;
+}
+
+.tim-intro p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@keyframes timWave {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tim-avatar {
+    animation: none;
+  }
+}
