@@ -107,11 +107,15 @@
 }
 
 
+/* Pass Once AI — clean responsive Tim positioning */
 
-/* Tim's responsive position */
-
-/* Desktop: Tim sits above the students */
+/* Desktop: keep text on the left and Tim above the students */
 @media (min-width: 901px) {
+  .hero-card .hero-copy {
+    display: block;
+    max-width: 56%;
+  }
+
   .hero-card .tim-welcome {
     position: absolute;
     top: 28px;
@@ -134,8 +138,8 @@
   .hero-card .tim-avatar {
     width: 44px;
     height: 44px;
-    font-size: 26px;
     flex-shrink: 0;
+    font-size: 26px;
   }
 
   .hero-card .tim-label {
@@ -154,10 +158,10 @@
   }
 }
 
-/* Phone and tablet: Tim follows the headline and description */
+/* Mobile: Tim follows the headline and description */
 @media (max-width: 900px) {
   .hero-card .tim-welcome {
-    position: relative;
+    position: static;
     width: 100%;
     max-width: 440px;
     margin: 18px 0 0;
@@ -172,8 +176,8 @@
   .hero-card .tim-avatar {
     width: 46px;
     height: 46px;
-    font-size: 28px;
     flex-shrink: 0;
+    font-size: 28px;
   }
 
   .hero-card .tim-intro h3 {
@@ -187,107 +191,5 @@
 }
 
 
-/* Phone and tablet: place Tim below the headline */
-@media (max-width: 900px) {
-  .hero-copy .tim-welcome {
-    position: static;
-    width: 100%;
-    max-width: 440px;
-    margin: 18px 0;
-    padding: 12px;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border-radius: 16px;
-  }
-
-  .hero-copy .tim-avatar {
-    flex-shrink: 0;
-    width: 46px;
-    height: 46px;
-    font-size: 28px;
-  }
-
-  .hero-copy .tim-intro h3 {
-    font-size: 17px;
-  }
-
-  .hero-copy .tim-intro p {
-    font-size: 13px;
-    line-height: 1.5;
-  }
-}
-
-/* Final desktop positioning for Tim */
-@media (min-width: 901px) {
-  .hero-card .hero-copy {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
-    grid-template-areas:
-      "badge tim"
-      "headline tim"
-      "description tim";
-    column-gap: 24px;
-    align-items: start;
-    max-width: 100%;
-  }
-
-  .hero-copy > .pill {
-    grid-area: badge;
-    justify-self: start;
-  }
-
-  .hero-copy > h1 {
-    grid-area: headline;
-  }
-
-  .hero-copy > .hero-lead {
-    grid-area: description;
-  }
-
-  .hero-copy > .tim-welcome {
-    grid-area: tim;
-    position: relative;
-    top: auto;
-    right: auto;
-    left: auto;
-    width: 300px;
-    max-width: 300px;
-    margin: 0;
-    padding: 12px;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    z-index: 5;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.94);
-    color: #14264b;
-    box-shadow: 0 8px 24px rgba(20, 38, 75, 0.08);
-  }
-
-  .hero-copy > .tim-welcome .tim-avatar {
-    width: 44px;
-    height: 44px;
-    flex-shrink: 0;
-    font-size: 26px;
-  }
-
-  .hero-copy > .tim-welcome .tim-label {
-    font-size: 9px;
-  }
-
-  .hero-copy > .tim-welcome .tim-intro h3 {
-    margin: 4px 0;
-    font-size: 16px;
-  }
-
-  .hero-copy > .tim-welcome .tim-intro p {
-    margin: 0;
-    font-size: 12px;
-    line-height: 1.4;
-  }
-}
 
 
