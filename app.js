@@ -1087,12 +1087,27 @@ $("subjects").innerHTML = `
       </button>
     </div>
 
-    <div id="progressPanel" class="hidden"></div>
 
-    <div style="width:100%;min-width:0">
-      <h3 style="margin:0 0 12px">
-        📚 Your Subjects
-      </h3>
+<div id="progressPanel" class="hidden"></div>
+
+<!-- Personalised topic recommendation -->
+<div
+  id="recommendedTopicCard"
+  class="card hidden"
+  style="
+    width:100%;
+    min-width:0;
+    box-sizing:border-box;
+    margin:0;
+    padding:18px;
+  "
+></div>
+
+<div style="width:100%;min-width:0">
+  <h3 style="margin:0 0 12px">
+    📚 Your Subjects
+  </h3>
+
 
       <div style="
         display:grid;
@@ -1111,6 +1126,70 @@ $("subjects").innerHTML = `
 `;
 
   $("practiceSubjects").innerHTML = subjectCards;
+  
+  // Load the student's personalised topic recommendation
+  const recommendationCard = $("recommendedTopicCard");
+
+  if (recommendationCard) {
+    recommendationCard.classList.add("hidden");
+    recommendationCard.innerHTML = "";
+
+    try {
+      const progressData = await getStudentProgressData();
+      const topic = progressData.attentionTopic;
+
+      if (topic && topic.id && topic.subject && topic.name) {
+        recommendationCard.innerHTML = `
+          <h3 style="margin:0 0 8px">
+            🎯 Recommended for You
+          </h3>
+          <h4 style="margin:0 0 6px">
+            ${escapeHtml(topic.name)}
+          </h4>
+          <p class="muted" style="margin:0 0 12px">
+            ${escapeHtml(topic.subject)}
+          </p>
+          <p style="margin:0 0 12px">
+            ${escapeHtml(progressData.recommendation)}
+          </p>
+          <button
+            class="primary"
+            type="button"
+            id="dashboardPractiseRecommendedTopic"
+            style="width:100%"
+          >
+            🎯 Practise This Topic
+          </button>
+        `;
+
+        recommendationCard.classList.remove("hidden");
+
+        $("dashboardPractiseRecommendedTopic").onclick = async (event) => {
+          const btn = event.currentTarget;
+          btn.disabled = true;
+          btn.textContent = "Loading topic…";
+
+          try {
+            await startTopic(
+              Number(topic.id),
+              topic.subject,
+              topic.name
+            );
+            $("quiz").classList.remove("hidden");
+          } catch (e) {
+            console.error("Dashboard recommendation error:", e);
+            alert("Could not open this topic. Please try again.");
+          } finally {
+            btn.disabled = false;
+            btn.textContent = "🎯 Practise This Topic";
+          }
+        };
+      }
+    } catch (e) {
+      console.error("Dashboard recommendation could not load:", e);
+    }
+  }
+
   $("openProgress").onclick = showStudentProgress;
   const curriculumBtn = $("openCurriculum");
   if (curriculumBtn) curriculumBtn.onclick = openCurriculum;
