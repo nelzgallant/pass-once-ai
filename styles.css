@@ -113,3 +113,39 @@
   }
 }
 
+/* Tim at the top of the hero section */
+.hero-copy .tim-welcome {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  max-width: 440px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #14264b;
+}
+
+.hero-copy .tim-avatar {
+  width: 46px;
+  height: 46px;
+  font-size: 28px;
+}
+
+.hero-copy .tim-label {
+  font-size: 9px;
+}
+
+.hero-copy .tim-intro h3 {
+  margin: 4px 0;
+  font-size: 17px;
+}
+
+.hero-copy .tim-intro p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
