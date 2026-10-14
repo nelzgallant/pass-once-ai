@@ -243,6 +243,53 @@
 
 
 
+/* Restore the desktop login and hero columns */
+@media (min-width: 901px) {
+  .auth-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+    gap: 22px;
+    align-items: stretch;
+  }
+
+  .auth-wrap > .hero-card {
+    grid-column: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 575px;
+  }
+
+  .auth-wrap > .auth-card {
+    grid-column: 2;
+    width: 100%;
+    min-width: 0;
+    align-self: stretch;
+    box-sizing: border-box;
+  }
+
+  .hero-card .hero-copy {
+    max-width: 62%;
+  }
+
+  .hero-card .hero-art {
+    position: absolute;
+    right: -5px;
+    bottom: -12px;
+    width: 52%;
+    max-width: 455px;
+    z-index: 2;
+  }
+
+  .hero-card .tim-welcome {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    top: auto;
+    left: auto;
+    z-index: 5;
+  }
+}
+
 
 
 
