@@ -2733,3 +2733,32 @@ if (lessons.length > 1) {
     }
   };
 }
+
+const timStartBtn = $("timStartBtn");
+
+if (timStartBtn) {
+  timStartBtn.onclick = () => {
+    const request = $("timRequest")?.value.trim();
+
+    if (!request) {
+      const timMsg = $("timMsg");
+      if (timMsg) {
+        timMsg.textContent =
+          "Tell me your assignment, question, or topic first.";
+      }
+      return;
+    }
+
+    // Keep Tim's question while the visitor logs in.
+    sessionStorage.setItem("passOnceTimRequest", request);
+
+    const timMsg = $("timMsg");
+    if (timMsg) {
+      timMsg.textContent =
+        "Wonderful! Please log in or create your account so we can continue learning.";
+    }
+
+    // Bring the login form into focus.
+    $("email")?.focus();
+  };
+}
