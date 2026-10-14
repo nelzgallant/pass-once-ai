@@ -110,73 +110,67 @@
 /* Pass Once AI — clean responsive Tim positioning */
 
 
-/* Desktop: position Tim above the students */
+
+/* Desktop: Tim's compact card beside the students */
 @media (min-width: 901px) {
   .hero-card {
     position: relative;
   }
 
+  .hero-card .tim-welcome {
+    position: absolute;
+    top: 300px;
+    right: 10px;
+    bottom: auto;
+    left: auto;
+    width: 260px;
+    max-width: 260px;
+    margin: 0;
+    padding: 12px;
+    box-sizing: border-box;
+    display: block;
+    z-index: 5;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.96);
+    color: #14264b;
+    box-shadow: 0 8px 24px rgba(20, 38, 75, 0.08);
+  }
 
+  .hero-card .tim-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 26px;
+  }
 
+  .hero-card .tim-intro h3 {
+    font-size: 15px;
+    margin: 4px 0 7px;
+  }
 
+  .hero-card .tim-intro p {
+    font-size: 12px;
+    line-height: 1.4;
+    margin: 0;
+  }
 
+  .hero-card .tim-question-box label {
+    font-size: 12px;
+    line-height: 1.4;
+  }
 
-.hero-card .tim-welcome {
-  position: absolute;
-  top: 300px;
-  right: 10px;
-  bottom: auto;
-  left: auto;
-  width: 260px;
-  max-width: 260px;
-  margin: 0;
-  padding: 12px;
-  box-sizing: border-box;
-  display: block;
-  z-index: 5;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #14264b;
-  box-shadow: 0 8px 24px rgba(20, 38, 75, 0.08);
+  .hero-card .tim-question-box textarea {
+    min-height: 65px;
+    padding: 9px;
+    font-size: 12px;
+  }
+
+  .hero-card .tim-question-box button {
+    padding: 10px;
+    font-size: 13px;
+  }
 }
 
-
-.hero-card .tim-avatar {
-  width: 36px;
-  height: 36px;
-  font-size: 22px;
-}
-
-.hero-card .tim-intro h3 {
-  font-size: 15px;
-  margin: 4px 0 7px;
-}
-
-.hero-card .tim-intro p {
-  font-size: 11px;
-  line-height: 1.4;
-  margin: 0;
-}
-
-.hero-card .tim-question-box label {
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.hero-card .tim-question-box textarea {
-  min-height: 65px;
-  padding: 9px;
-  font-size: 12px;
-}
-
-.hero-card .tim-question-box button {
-  padding: 10px;
-  font-size: 13px;
-}
-
-
-
-/* Mobile: Tim follows the headline and description */
+/* Mobile: keep Tim in the normal page flow */
 @media (max-width: 900px) {
   .hero-card .tim-welcome {
     position: static;
@@ -186,6 +180,7 @@
     padding: 12px;
     box-sizing: border-box;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 12px;
     z-index: 3;
@@ -198,6 +193,11 @@
     font-size: 28px;
   }
 
+  .hero-card .tim-intro {
+    flex: 1 1 180px;
+    min-width: 0;
+  }
+
   .hero-card .tim-intro h3 {
     font-size: 17px;
   }
@@ -206,7 +206,22 @@
     font-size: 13px;
     line-height: 1.5;
   }
+
+  .hero-card .tim-question-box {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .hero-card .tim-question-box textarea {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .hero-card .tim-question-box button {
+    width: 100%;
+  }
 }
+
 
 /* Tim's interactive question box */
 .tim-question-box {
