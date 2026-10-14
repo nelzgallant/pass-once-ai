@@ -481,6 +481,114 @@
 }
 
 
+/* Pass Once AI — Tim layout repair */
+.hero-card .tim-welcome {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  margin: 20px 0 0;
+  padding: 18px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.97);
+  color: #14264b;
+  z-index: 5;
+}
+
+.hero-card .tim-avatar-img {
+  display: block;
+  width: 100px;
+  height: 120px;
+  flex: 0 0 100px;
+  object-fit: contain;
+  object-position: center top;
+  border-radius: 14px;
+}
+
+.hero-card .tim-panel {
+  flex: 1 1 220px;
+  min-width: 0;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  background: transparent;
+  box-shadow: none;
+}
+
+.hero-card .tim-intro {
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.hero-card .tim-intro h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.hero-card .tim-intro p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.hero-card .tim-question-box {
+  width: 100%;
+  min-width: 0;
+  margin-top: 16px;
+}
+
+.hero-card .tim-question-box textarea {
+  display: block;
+  width: 100%;
+  min-height: 90px;
+  height: auto;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.hero-card .tim-question-box button {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 12px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 650px) {
+  .hero-card .tim-welcome {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .hero-card .tim-avatar-img {
+    width: 76px;
+    height: 96px;
+    flex-basis: 76px;
+  }
+
+  .hero-card .tim-panel {
+    flex-basis: 100%;
+  }
+
+  .hero-card .tim-intro h3 {
+    font-size: 17px;
+  }
+}
+
 
 
 
