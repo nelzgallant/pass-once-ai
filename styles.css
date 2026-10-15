@@ -347,29 +347,27 @@
 
 /* ===== Pass Once AI: final hero text and Tim adjustments ===== */
 
-/* Desktop: keep hero text clear of the students' image */
+/* Restore the original hero text sizes */
 @media (min-width: 901px) {
-  .hero-card .hero-copy {
-    width: 54%;
-    max-width: 54%;
-    box-sizing: border-box;
-    overflow-wrap: break-word;
-  }
-
-  .hero-card .hero-copy h1,
-  .hero-card .hero-copy .hero-lead {
-    max-width: 100%;
-  }
-
   .hero-card .hero-copy h1 {
-    font-size: clamp(30px, 3vw, 44px);
-    line-height: 1.12;
+    font-size: revert;
+    line-height: revert;
   }
 
-  .hero-card .hero-copy .hero-lead {
-    font-size: 16px;
-    line-height: 1.65;
+  .hero-card .hero-copy {
+    width: 100%;
+    max-width: 590px;
   }
+
+  /* Adjust only the descriptive paragraph */
+  .hero-card .hero-copy .hero-lead {
+    max-width: 410px;
+    font-size: revert;
+    line-height: 1.65;
+    overflow-wrap: normal;
+  }
+}
+
 
   /* Move Tim's avatar slightly upward, closer to his greeting */
   .hero-card .tim-avatar-img {
