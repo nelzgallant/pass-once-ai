@@ -420,3 +420,36 @@
   }
 }
 
+/* ===== Tim: gentle animation and card adjustment ===== */
+
+/* Desktop: move Tim's card slightly right and down */
+@media (min-width: 901px) {
+  .hero-card .tim-welcome {
+    right: -6px;
+    bottom: -18px;
+  }
+}
+
+/* Give Tim a gentle floating animation */
+.hero-card .tim-avatar-img {
+  animation: timFloat 3s ease-in-out infinite;
+  will-change: translate;
+}
+
+@keyframes timFloat {
+  0%, 100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -6px;
+  }
+}
+
+/* Respect visitors who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .hero-card .tim-avatar-img {
+    animation: none;
+    will-change: auto;
+  }
+}
+
