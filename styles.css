@@ -393,3 +393,30 @@
 }
 
 
+/* ===== Final Tim positioning adjustments ===== */
+
+/* Desktop: move Tim's card down to reveal all four students' faces */
+@media (min-width: 901px) {
+  .hero-card .tim-welcome {
+    bottom: -8px;
+  }
+
+  /* Raise Tim's avatar within his card */
+  .hero-card .tim-avatar-img {
+    transform: translateY(-35px);
+  }
+}
+
+/* Phone and tablet */
+@media (max-width: 900px) {
+  /* Raise Tim's avatar slightly */
+  .hero-card .tim-avatar-img {
+    transform: translateY(-22px);
+  }
+
+  /* Hide the extra question label on smaller screens */
+  .hero-card .tim-question-box label {
+    display: none;
+  }
+}
+
