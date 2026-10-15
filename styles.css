@@ -345,47 +345,38 @@
 }
 
 
-/* ===== Pass Once AI: final hero text and Tim adjustments ===== */
 
-/* Restore the original hero text sizes */
+/* ===== Final hero text correction ===== */
 @media (min-width: 901px) {
-  .hero-card .hero-copy h1 {
-    font-size: revert;
-    line-height: revert;
+  /* Keep the headline clear of the students' image */
+  .hero-card .hero-copy {
+    width: auto;
+    max-width: 62%;
   }
 
-  .hero-card .hero-copy {
-    width: 100%;
-    max-width: 590px;
+  /* Restore the original responsive heading size */
+  .hero-card .hero-copy h1 {
+    font-size: clamp(45px, 6vw, 72px);
+    line-height: .98;
+    margin: 22px 0 17px;
+    letter-spacing: -2.8px;
+    font-weight: 800;
   }
 
   /* Adjust only the descriptive paragraph */
   .hero-card .hero-copy .hero-lead {
-    max-width: 410px;
-    font-size: revert;
-    line-height: 1.65;
+    max-width: 440px;
+    font-size: 18px;
+    line-height: 1.6;
     overflow-wrap: normal;
   }
-}
 
-
-  /* Move Tim's avatar slightly upward, closer to his greeting */
+  /* Keep Tim's avatar slightly raised */
   .hero-card .tim-avatar-img {
     transform: translateY(-12px);
   }
 }
 
-/* Mobile and tablet: preserve the stacked layout */
-@media (max-width: 900px) {
-  .hero-card .hero-copy {
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .hero-card .tim-avatar-img {
-    transform: translateY(-6px);
-  }
-}
 
 
 
