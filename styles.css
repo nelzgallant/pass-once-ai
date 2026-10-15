@@ -345,5 +345,49 @@
 }
 
 
+/* ===== Pass Once AI: final hero text and Tim adjustments ===== */
+
+/* Desktop: keep hero text clear of the students' image */
+@media (min-width: 901px) {
+  .hero-card .hero-copy {
+    width: 54%;
+    max-width: 54%;
+    box-sizing: border-box;
+    overflow-wrap: break-word;
+  }
+
+  .hero-card .hero-copy h1,
+  .hero-card .hero-copy .hero-lead {
+    max-width: 100%;
+  }
+
+  .hero-card .hero-copy h1 {
+    font-size: clamp(30px, 3vw, 44px);
+    line-height: 1.12;
+  }
+
+  .hero-card .hero-copy .hero-lead {
+    font-size: 16px;
+    line-height: 1.65;
+  }
+
+  /* Move Tim's avatar slightly upward, closer to his greeting */
+  .hero-card .tim-avatar-img {
+    transform: translateY(-12px);
+  }
+}
+
+/* Mobile and tablet: preserve the stacked layout */
+@media (max-width: 900px) {
+  .hero-card .hero-copy {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .hero-card .tim-avatar-img {
+    transform: translateY(-6px);
+  }
+}
+
 
 
