@@ -328,7 +328,7 @@
   .hero-card .hero-art {
     position: absolute;
     right: -5px;
-    bottom: 35px;
+    bottom: 100px;
     width: 52%;
     max-width: 455px;
     z-index: 2;
