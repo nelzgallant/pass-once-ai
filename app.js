@@ -1174,7 +1174,11 @@ $("subjects").innerHTML = `
 
         recommendationCard.classList.remove("hidden");
 
-        $("dashboardPractiseRecommendedTopic").onclick = async (event) => {
+const recommendedPracticeBtn =
+  $("dashboardPractiseRecommendedTopic");
+
+if (recommendedPracticeBtn) {
+  recommendedPracticeBtn.onclick = async (event) => {
           const btn = event.currentTarget;
           btn.disabled = true;
           btn.textContent = "Loading topic…";
@@ -1193,14 +1197,19 @@ $("subjects").innerHTML = `
             btn.disabled = false;
             btn.textContent = "🎯 Practise This Topic";
           }
-        };
+                };
+      }
       }
     } catch (e) {
       console.error("Dashboard recommendation could not load:", e);
     }
   }
 
-  $("openProgress").onclick = showStudentProgress;
+ const openProgressBtn = $("openProgress");
+
+if (openProgressBtn) {
+  openProgressBtn.onclick = showStudentProgress;
+}
   const curriculumBtn = $("openCurriculum");
   if (curriculumBtn) curriculumBtn.onclick = openCurriculum;
   const progressBtn = $("progress");
