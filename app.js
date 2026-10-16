@@ -1379,26 +1379,38 @@ subjects.sort((a, b) => {
       ${subjectSections}
     `;
 
-    document.querySelectorAll(".curriculum-term-btn").forEach(btn => {
-      btn.onclick = () => {
-        const subject = subjectById.get(
-          Number(btn.dataset.subjectId)
-        );
+    
+document.querySelectorAll(".curriculum-term-btn").forEach(btn => {
+  btn.onclick = () => {
+    const subject = subjectById.get(
+      Number(btn.dataset.subjectId)
+    );
 
-        if (!subject) {
-          console.error("Curriculum subject not found.");
-          return;
-        }
+    if (!subject) {
+      console.error("Curriculum subject not found.");
+      return;
+    }
 
-        openCurriculumTerm(
-          Number(btn.dataset.termId),
-          btn.dataset.termName,
-          subject,
-          version.id,
-          `curriculumWeeks-${Number(subject.id)}`
-        );
-      };
+    const targetWeeksId =
+      `curriculumWeeks-${Number(subject.id)}`;
+
+    // Close all previously opened terms across every subject.
+    document.querySelectorAll('[id^="curriculumWeeks-"]').forEach(box => {
+      if (box.id !== targetWeeksId) {
+        box.innerHTML = "";
+      }
     });
+
+    // Load the selected term into its own subject section.
+    openCurriculumTerm(
+      Number(btn.dataset.termId),
+      btn.dataset.termName,
+      subject,
+      version.id,
+      targetWeeksId
+    );
+  };
+});
 
   } catch (e) {
     console.error("Curriculum loading error:", e);
