@@ -1641,6 +1641,7 @@ async function getPracticeTopics(subjectId, classId) {
   }
   return rows;
 }
+
 async function startTopic(
   topicId,
   subjectName,
@@ -1682,94 +1683,147 @@ async function startTopic(
   try {
     let questionPool = [];
 
+    const questionFields =
+      "id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type";
+
     /*
       ==========================================
-      LESSON-SPECIFIC PRACTICE
+      LESSON-SPECIFIC PRACTICE WITH FALLBACKS
       ==========================================
+
+      Priority:
+      1. lesson_question_links
+      2. questions.lesson_id
+      3. questions.topic_id
     */
 
     if (lessonId) {
-      // Get the questions deliberately connected
-      // to this lesson as Core / Revision / Challenge.
-      const { data: links, error: linkError } =
-        await sb
-          .from("lesson_question_links")
-          .select(
-            "question_id, role, weight"
-          )
-          .eq("lesson_id", lessonId);
+      // SOURCE 1: Questions linked to this lesson.
+      const {
+        data: links,
+        error: linkError
+      } = await sb
+        .from("lesson_question_links")
+        .select("question_id, role, weight")
+        .eq("lesson_id", lessonId);
 
       if (linkError) throw linkError;
 
-      const questionIds = [
-        ...new Set(
-          (links || []).map(
-            x => Number(x.question_id)
-          )
-        )
-      ];
+      const uniqueLinks = [];
+      const seenLinkIds = new Set();
 
-      if (!questionIds.length) {
-        $("question").textContent =
-          "No questions available for this lesson yet.";
+      for (const link of links || []) {
+        const id = Number(link.question_id);
 
-        $("options").innerHTML = `
-          <button class="ghost" type="button" id="backToLesson">
-            ← Back to Lesson
-          </button>
-        `;
-
-        $("backToLesson").onclick = () =>
-          displayLesson(
-            lessonId,
-            topicId,
-            subjectName,
-            topicName
-          );
-
-        return;
+        if (
+          Number.isFinite(id) &&
+          !seenLinkIds.has(id)
+        ) {
+          seenLinkIds.add(id);
+          uniqueLinks.push({
+            ...link,
+            question_id: id
+          });
+        }
       }
 
-      const { data: questions, error: questionError } =
-        await sb
+      const questionIds = uniqueLinks.map(
+        link => link.question_id
+      );
+
+      if (questionIds.length) {
+        const {
+          data: linkedQuestions,
+          error: linkedError
+        } = await sb
           .from("questions")
-          .select(
-            "id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type"
-          )
+          .select(questionFields)
           .in("id", questionIds)
           .eq("language_code", "en")
           .eq("is_published", true);
 
-      if (questionError) throw questionError;
+        if (linkedError) throw linkedError;
 
-      const roleMap = new Map(
-        (links || []).map(link => [
-          Number(link.question_id),
-          link.role
-        ])
-      );
+        const roleMap = new Map(
+          uniqueLinks.map(link => [
+            link.question_id,
+            String(link.role || "core").toLowerCase()
+          ])
+        );
 
-      questionPool = (questions || []).map(q => ({
-        ...q,
-        practiceRole:
-          roleMap.get(Number(q.id)) || "core"
-      }));
+        questionPool = (
+          linkedQuestions || []
+        ).map(q => ({
+          ...q,
+          practiceRole:
+            roleMap.get(Number(q.id)) || "core"
+        }));
+      }
+
+      // SOURCE 2: Questions assigned directly to the lesson.
+      if (!questionPool.length) {
+        const {
+          data: lessonQuestions,
+          error: lessonQuestionError
+        } = await sb
+          .from("questions")
+          .select(questionFields)
+          .eq("lesson_id", lessonId)
+          .eq("language_code", "en")
+          .eq("is_published", true)
+          .order("id");
+
+        if (lessonQuestionError) {
+          throw lessonQuestionError;
+        }
+
+        questionPool = (
+          lessonQuestions || []
+        ).map(q => ({
+          ...q,
+          practiceRole: "core"
+        }));
+      }
+
+      // SOURCE 3: Published questions assigned to the topic.
+      if (!questionPool.length) {
+        const {
+          data: topicQuestions,
+          error: topicQuestionError
+        } = await sb
+          .from("questions")
+          .select(questionFields)
+          .eq("topic_id", topicId)
+          .eq("language_code", "en")
+          .eq("is_published", true)
+          .order("id");
+
+        if (topicQuestionError) {
+          throw topicQuestionError;
+        }
+
+        questionPool = (
+          topicQuestions || []
+        ).map(q => ({
+          ...q,
+          practiceRole: "core"
+        }));
+      }
 
     } else {
-
       /*
         ==========================================
         NORMAL TOPIC PRACTICE
         ==========================================
-        Used by existing "Practice Again"
-        buttons and other topic-level practice.
+        Preserves existing topic-level practice.
       */
 
-      const { data, error } = await sb
+      const {
+        data,
+        error
+      } = await sb
         .from("questions")
-        .select(
-          "id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type"
-        )
+        .select(questionFields)
         .eq("language_code", "en")
         .eq("topic_id", topicId)
         .eq("is_published", true)
@@ -1782,13 +1836,13 @@ async function startTopic(
 
     /*
       ==========================================
-      SMART RANDOM SELECTION
+      HANDLE EMPTY QUESTION POOL
       ==========================================
     */
 
     if (!questionPool.length) {
       $("question").textContent =
-        "No questions available for this lesson yet.";
+        "No published practice questions are available for this topic yet.";
 
       $("options").innerHTML = `
         <button class="ghost" type="button" id="backToTopics">
@@ -1796,59 +1850,79 @@ async function startTopic(
         </button>
       `;
 
-      $("backToTopics").onclick = () =>
-        start(currentSubject.id, subjectName);
+      $("backToTopics").onclick = () => {
+        if (lessonId) {
+          displayLesson(
+            lessonId,
+            topicId,
+            subjectName,
+            topicName
+          );
+        } else if (currentSubject?.id) {
+          start(currentSubject.id, subjectName);
+        }
+      };
 
       return;
     }
 
     /*
-      Lesson practice:
-      Keep revision questions available,
-      but prioritize Core questions.
+      ==========================================
+      SHUFFLE HELPER
+      ==========================================
+    */
 
-      For a 15-question practice:
-      - up to 12 Core
-      - up to 2 Revision
-      - up to 1 Challenge
+    const shuffle = arr => {
+      const copy = [...arr];
 
-      If a category doesn't have enough questions,
-      the remaining places are filled from
-      the available pool.
+      for (
+        let i = copy.length - 1;
+        i > 0;
+        i--
+      ) {
+        const j = Math.floor(
+          Math.random() * (i + 1)
+        );
+
+        [copy[i], copy[j]] =
+          [copy[j], copy[i]];
+      }
+
+      return copy;
+    };
+
+    /*
+      ==========================================
+      SMART RANDOM SELECTION
+      ==========================================
     */
 
     let selected = [];
 
     if (lessonId) {
+      /*
+        Prioritize Core questions, then Revision,
+        then Challenge. Fallback questions are
+        treated as Core.
+      */
+
       const core = questionPool.filter(
-        q => q.practiceRole === "core"
+        q =>
+          String(q.practiceRole || "core")
+            .toLowerCase() === "core"
       );
 
       const revision = questionPool.filter(
-        q => q.practiceRole === "revision"
+        q =>
+          String(q.practiceRole || "")
+            .toLowerCase() === "revision"
       );
 
       const challenge = questionPool.filter(
-        q => q.practiceRole === "challenge"
+        q =>
+          String(q.practiceRole || "")
+            .toLowerCase() === "challenge"
       );
-
-      const shuffle = arr => {
-        const copy = [...arr];
-
-        for (
-          let i = copy.length - 1;
-          i > 0;
-          i--
-        ) {
-          const j =
-            Math.floor(Math.random() * (i + 1));
-
-          [copy[i], copy[j]] =
-            [copy[j], copy[i]];
-        }
-
-        return copy;
-      };
 
       selected.push(
         ...shuffle(core).slice(0, 12)
@@ -1862,10 +1936,7 @@ async function startTopic(
         ...shuffle(challenge).slice(0, 1)
       );
 
-      /*
-        Fill any remaining spaces.
-      */
-
+      // Fill any remaining spaces without duplicates.
       const selectedIds = new Set(
         selected.map(q => Number(q.id))
       );
@@ -1880,23 +1951,16 @@ async function startTopic(
         selected.length < 15 &&
         remaining.length
       ) {
-        selected.push(
-          remaining.shift()
-        );
+        selected.push(remaining.shift());
       }
-
-      /*
-        If the lesson has fewer than 15
-        connected questions, use everything.
-      */
 
       selected = selected.slice(0, 15);
 
     } else {
-
       /*
-        Preserve our existing topic-level
-        smart-random behaviour.
+        Preserve existing topic-level selection:
+        5 Easy, 7 Medium, 3 Hard/Challenging,
+        then fill remaining places if necessary.
       */
 
       const easy = questionPool.filter(
@@ -1911,36 +1975,16 @@ async function startTopic(
             .toLowerCase() === "medium"
       );
 
-      const hard = questionPool.filter(
-        q => {
-          const d =
-            String(q.difficulty || "")
-              .toLowerCase();
+      const hard = questionPool.filter(q => {
+        const difficulty =
+          String(q.difficulty || "")
+            .toLowerCase();
 
-          return (
-            d === "hard" ||
-            d === "challenging"
-          );
-        }
-      );
-
-      const shuffle = arr => {
-        const copy = [...arr];
-
-        for (
-          let i = copy.length - 1;
-          i > 0;
-          i--
-        ) {
-          const j =
-            Math.floor(Math.random() * (i + 1));
-
-          [copy[i], copy[j]] =
-            [copy[j], copy[i]];
-        }
-
-        return copy;
-      };
+        return (
+          difficulty === "hard" ||
+          difficulty === "challenging"
+        );
+      });
 
       selected = [
         ...shuffle(easy).slice(0, 5),
@@ -1962,9 +2006,7 @@ async function startTopic(
         selected.length < 15 &&
         remaining.length
       ) {
-        selected.push(
-          remaining.shift()
-        );
+        selected.push(remaining.shift());
       }
 
       selected = shuffle(
@@ -1973,15 +2015,16 @@ async function startTopic(
     }
 
     /*
-      Final question set
+      ==========================================
+      FINAL QUESTION SET
+      ==========================================
     */
 
     currentQuestions = selected;
 
-    currentAnswers =
-      new Array(
-        currentQuestions.length
-      ).fill(null);
+    currentAnswers = new Array(
+      currentQuestions.length
+    ).fill(null);
 
     renderQ();
 
@@ -1997,11 +2040,10 @@ async function startTopic(
     $("explain").textContent =
       e.message;
 
-    $("explain").classList.remove(
-      "hidden"
-    );
+    $("explain").classList.remove("hidden");
   }
 }
+
 async function topicIds(subjectId, classId) {
   const { data, error } = await sb
     .from("topics")
