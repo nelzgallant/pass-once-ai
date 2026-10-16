@@ -2898,9 +2898,46 @@ async function resumeTimRequest() {
     const requestText = normalize(request);
 
 
-    const words = requestText
-      .split(" ")
-      .filter((word) => word.length > 2);
+
+const ignoredWords = new Set([
+  "explain",
+  "teach",
+  "learn",
+  "learning",
+  "understand",
+  "want",
+  "like",
+  "help",
+  "please",
+  "tell",
+  "show",
+  "about",
+  "into",
+  "with",
+  "from",
+  "that",
+  "this",
+  "what",
+  "how",
+  "why",
+  "can",
+  "could",
+  "would",
+  "me",
+  "my",
+  "the",
+  "and",
+  "for",
+  "you",
+  "i"
+]);
+
+const words = requestText
+  .split(" ")
+  .filter(
+    (word) => word.length > 2 && !ignoredWords.has(word)
+  );
+
 
     // Load existing lessons for the student's class topics.
     const topicIds = topics.map((topic) => Number(topic.id));
