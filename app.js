@@ -1349,8 +1349,19 @@ if (subjectSelect) {
   }
 }
 
-async function openCurriculumTerm(termId, termName, subject, versionId) {
-  const weeksBox = $("curriculumWeeks");
+async function openCurriculumTerm(
+  termId,
+  termName,
+  subject,
+  versionId,
+  weeksBoxId = "curriculumWeeks"
+) {
+  const weeksBox = $(weeksBoxId) || $("curriculumWeeks");
+
+  if (!weeksBox) {
+    console.error("Curriculum weekly topics container not found:", weeksBoxId);
+    return;
+  }
   weeksBox.innerHTML = '<div class="card"><p>Loading weekly topics…</p></div>';
   curriculumReturn = { termId, termName, subject, versionId };
 
@@ -1445,7 +1456,16 @@ displayLesson(lesson, subject.name, btn.dataset.weekTitle, topicId, lessons);
     console.error("Weekly curriculum error:", e);
     weeksBox.innerHTML = `<div class="card"><p>Could not load weekly topics.</p><p class="muted">${escapeHtml(e.message || "Please try again.")}</p><button class="ghost" id="retryCurriculumTerm" type="button">Try again</button></div>`;
     const retry = $("retryCurriculumTerm");
-    if (retry) retry.onclick = () => openCurriculumTerm(termId, termName, subject, versionId);
+ if (retry) {
+  retry.onclick = () =>
+    openCurriculumTerm(
+      termId,
+      termName,
+      subject,
+      versionId,
+      weeksBoxId
+    );
+}
   }
 }
 
@@ -2867,6 +2887,9 @@ async function resumeTimRequest() {
 
   if (!request || !user || !profile) return;
 
+  // Consume the request so it cannot run again on the next login.
+  sessionStorage.removeItem("passOnceTimRequest");
+
   if (profile.role === "parent") return;
 
   const timMsg = $("timMsg");
@@ -3055,21 +3078,13 @@ const words = requestText
 
 
 
-    if (!matches.length) {
-      if (timMsg) {
-        timMsg.textContent =
-          "I couldn't find that exact topic in your class yet.";
-      }
-
-      alert(
-        "Tim couldn't find a matching lesson for your request yet.\n\n" +
-        "Please choose a subject from your dashboard, or try another topic. " +
-        "We will expand Tim's lesson coverage as more lessons are added."
-      );
-
-      return;
-    }
-
+if (!matches.length) {
+  if (timMsg) {
+    timMsg.textContent =
+      "I couldn't find that exact topic in your class yet.";
+  }
+  return;
+}
 
     // Open the best matching topic's existing lesson screen.
 
