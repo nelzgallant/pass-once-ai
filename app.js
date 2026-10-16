@@ -1119,20 +1119,8 @@ $("subjects").innerHTML = `
   </h3>
 
 
-      <div style="
-        display:grid;
-        
-
-grid-template-columns:repeat(
-  auto-fit,
-  minmax(min(100%, 145px), 1fr)
-);
-
-gap:14px;
-width:100%;
-min-width:0;
-
-      ">
+      
+<div class="dashboard-subject-grid">
         ${subjectCards}
       </div>
     </div>
