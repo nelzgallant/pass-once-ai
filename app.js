@@ -1246,11 +1246,32 @@ async function openCurriculum() {
 
   try {
     const { data: subjects, error: subjectsError } = await sb
-      .from("subjects")
-      .select("id,name")
-      .order("name");
+  .from("subjects")
+  .select("id,name");
 
-    if (subjectsError) throw subjectsError;
+if (subjectsError) throw subjectsError;
+
+// Display core subjects in our preferred order.
+const subjectOrder = [
+  "mathematics",
+  "english studies",
+  "basic science"
+];
+
+subjects.sort((a, b) => {
+  const nameA = String(a.name || "").trim().toLowerCase();
+  const nameB = String(b.name || "").trim().toLowerCase();
+
+  const indexA = subjectOrder.indexOf(nameA);
+  const indexB = subjectOrder.indexOf(nameB);
+
+  const rankA = indexA === -1 ? subjectOrder.length : indexA;
+  const rankB = indexB === -1 ? subjectOrder.length : indexB;
+
+  if (rankA !== rankB) return rankA - rankB;
+
+  return nameA.localeCompare(nameB);
+});
 
     if (!subjects || !subjects.length) {
       throw new Error("No subjects are available yet.");
