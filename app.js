@@ -2936,26 +2936,57 @@ async function resumeTimRequest() {
     }
 
     // Open the best matching topic's existing lesson screen.
+
+    // Find the best matching topic and load its actual lessons.
     const best = matches[0];
+
+    const { data: lessons, error: lessonsError } = await sb
+      .from("lessons")
+      .select("id,topic_id,title,content,lesson_order")
+      .eq("topic_id", best.topic.id)
+      .order("lesson_order", { ascending: true })
+      .order("id", { ascending: true });
+
+    if (lessonsError) throw lessonsError;
+
+    if (!lessons?.length) {
+      if (timMsg) {
+        timMsg.textContent =
+          `I found ${best.topic.name}, but its lesson content isn't available yet.`;
+      }
+      return;
+    }
+
+    // Prefer a lesson whose title matches the student's request.
+    const lessonScores = lessons.map((lesson) => {
+      const title = normalize(lesson.title);
+      let score = 0;
+
+      if (title && requestText.includes(title)) score += 10;
+
+      for (const word of words) {
+        if (title.includes(word)) score += 2;
+      }
+
+      return { lesson, score };
+    });
+
+    lessonScores.sort((a, b) => b.score - a.score);
+
+    // If the student named only the topic, begin with its first lesson.
+    const selectedLesson = lessonScores[0].lesson;
+
+    displayLesson(
+      selectedLesson,
+      best.subjectName,
+      best.topic.name,
+      Number(best.topic.id),
+      lessons
+    );
 
     sessionStorage.removeItem("passOnceTimRequest");
 
-    await startLesson(
-      Number(best.topic.id),
-      best.subjectName,
-      best.topic.name
-    );
-
     if (timMsg) {
       timMsg.textContent =
-        `I found a lesson about ${best.topic.name}. Let's learn together!`;
+        `I found ${best.topic.name}. Let's start with "${selectedLesson.title}"!`;
     }
-  } catch (error) {
-    console.error("Tim lesson matching error:", error);
-
-    if (timMsg) {
-      timMsg.textContent =
-        "I couldn't open a matching lesson just now. Please try selecting your topic from the dashboard.";
-    }
-  }
-}
