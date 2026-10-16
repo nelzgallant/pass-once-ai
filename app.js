@@ -1121,13 +1121,15 @@ $("subjects").innerHTML = `
 
       <div style="
         display:grid;
-        grid-template-columns:repeat(
-          auto-fit,
-          minmax(min(100%, 250px), 1fr)
-        );
-        gap:14px;
-        width:100%;
-        min-width:0;
+        
+grid-template-columns:repeat(
+  auto-fit,
+  minmax(min(100%, 180px), 1fr)
+);
+gap:14px;
+width:100%;
+min-width:0;
+
       ">
         ${subjectCards}
       </div>
