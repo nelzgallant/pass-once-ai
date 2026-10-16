@@ -1283,6 +1283,7 @@ if (!subject) {
       .from("curriculum_weekly_topics")
       .select("id,curriculum_term_id,week_number,title,content_outline,source_reference")
       .eq("curriculum_version_id", version.id)
+      .eq("subject_id", Number(subject.id))
       .in("curriculum_term_id", terms.map(t => t.id))
       .order("week_number");
     if (weeklyError) throw weeklyError;
@@ -1296,7 +1297,21 @@ if (!subject) {
 
     $("curriculumContent").innerHTML = `
       <div class="card" style="margin-bottom:14px">
-        <p class="muted" style="margin:0 0 5px">${escapeHtml(classRow.name)} • ${escapeHtml(subject.name)}</p>
+     
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+  <p class="muted" style="margin:0">${escapeHtml(classRow.name)} • Curriculum subject</p>
+  <label>
+    <span class="muted">Subject</span>
+    <select id="curriculumSubjectSelect">
+      ${(subjects || []).map(s => `
+        <option value="${Number(s.id)}" ${Number(s.id) === Number(subject.id) ? "selected" : ""}>
+          ${escapeHtml(s.name)}
+        </option>
+      `).join("")}
+    </select>
+  </label>
+</div>
+
         <h3 style="margin:0">${escapeHtml(version.name || "Current Curriculum")}</h3>
         <p class="muted" style="margin-bottom:0">Choose a term to see its weekly topics and available lessons.</p>
       </div>
@@ -1311,6 +1326,15 @@ if (!subject) {
         }).join("")}
       </div>
       <div id="curriculumWeeks" style="margin-top:18px"></div>`;
+    
+const subjectSelect = $("curriculumSubjectSelect");
+
+if (subjectSelect) {
+  subjectSelect.onchange = () => {
+    openCurriculum(Number(subjectSelect.value));
+  };
+}
+
 
     document.querySelectorAll(".curriculum-term-btn").forEach(btn => {
       btn.onclick = () => openCurriculumTerm(
