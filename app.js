@@ -1228,7 +1228,7 @@ if (openProgressBtn) {
    CURRICULUM BROWSER
    First release: JSS1 Mathematics
 -------------------------------- */
-async function openCurriculum() {
+async function openCurriculum(subjectId = 1) {
   if (!classRow) classRow = await findClass();
   if (!classRow) {
     show("curriculumView");
@@ -1241,14 +1241,22 @@ async function openCurriculum() {
   curriculumReturn = null;
 
   try {
-    const { data: subject, error: subjectError } = await sb
-      .from("subjects")
-      .select("id,name")
-      .ilike("name", "Mathematics")
-      .limit(1)
-      .maybeSingle();
-    if (subjectError) throw subjectError;
-    if (!subject) throw new Error("Mathematics is not available in the subjects table yet.");
+   
+const { data: subjects, error: subjectsError } = await sb
+  .from("subjects")
+  .select("id,name")
+  .order("name");
+
+if (subjectsError) throw subjectsError;
+
+const subject = (subjects || []).find(
+  s => Number(s.id) === Number(subjectId)
+);
+
+if (!subject) {
+  throw new Error("The selected subject is not available.");
+}
+
 
     const { data: version, error: versionError } = await sb
       .from("curriculum_versions")
