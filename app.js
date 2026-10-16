@@ -1323,12 +1323,15 @@ async function openCurriculumTerm(termId, termName, subject, versionId) {
   curriculumReturn = { termId, termName, subject, versionId };
 
   try {
-    const { data: weeklyTopics, error: weeklyError } = await sb
-      .from("curriculum_weekly_topics")
-      .select("id,curriculum_term_id,week_number,title,content_outline,source_reference")
-      .eq("curriculum_version_id", versionId)
-      .eq("curriculum_term_id", termId)
-      .order("week_number");
+    
+const { data: weeklyTopics, error: weeklyError } = await sb
+  .from("curriculum_weekly_topics")
+  .select("id,curriculum_term_id,week_number,title,content_outline,source_reference")
+  .eq("curriculum_version_id", versionId)
+  .eq("curriculum_term_id", termId)
+  .eq("subject_id", Number(subject.id))
+  .order("week_number");
+
     if (weeklyError) throw weeklyError;
 
     if (!(weeklyTopics || []).length) {
