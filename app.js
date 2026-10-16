@@ -2897,23 +2897,50 @@ async function resumeTimRequest() {
 
     const requestText = normalize(request);
 
+
     const words = requestText
       .split(" ")
       .filter((word) => word.length > 2);
 
+    // Load existing lessons for the student's class topics.
+    const topicIds = topics.map((topic) => Number(topic.id));
+
+    const { data: classLessons, error: classLessonsError } = await sb
+      .from("lessons")
+      .select("id,topic_id,title,content,lesson_order")
+      .in("topic_id", topicIds);
+
+    if (classLessonsError) throw classLessonsError;
+
+    const lessonsByTopic = new Map();
+
+    for (const lesson of classLessons || []) {
+      const id = Number(lesson.topic_id);
+
+      if (!lessonsByTopic.has(id)) {
+        lessonsByTopic.set(id, []);
+      }
+
+      lessonsByTopic.get(id).push(lesson);
+    }
+
+
     const matches = topics
       .map((topic) => {
         const topicName = normalize(topic.name);
-        const subjectName = subjectById.get(
-          Number(topic.subject_id)
-        ) || "";
+        const subjectName =
+          subjectById.get(Number(topic.subject_id)) || "";
 
         const combined = normalize(
           `${subjectName} ${topic.name}`
         );
 
+        const topicLessons =
+          lessonsByTopic.get(Number(topic.id)) || [];
+
         let score = 0;
 
+        // Strong matches for topic and subject names.
         if (topicName && requestText.includes(topicName)) {
           score += 10;
         }
@@ -2923,8 +2950,26 @@ async function resumeTimRequest() {
         }
 
         for (const word of words) {
-          if (topicName.includes(word)) score += 2;
-          else if (normalize(subjectName).includes(word)) score += 1;
+          if (topicName.includes(word)) {
+            score += 2;
+          } else if (normalize(subjectName).includes(word)) {
+            score += 1;
+          }
+        }
+
+        // Also search lesson titles and lesson content.
+        for (const lesson of topicLessons) {
+          const title = normalize(lesson.title);
+          const content = normalize(lesson.content);
+
+          if (title && requestText.includes(title)) {
+            score += 8;
+          }
+
+          for (const word of words) {
+            if (title.includes(word)) score += 4;
+            if (content.includes(word)) score += 2;
+          }
         }
 
         return {
@@ -2935,6 +2980,7 @@ async function resumeTimRequest() {
       })
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score);
+
 
 
     if (!matches.length) {
