@@ -200,9 +200,14 @@ $("saveProfile").onclick = async () => {
       .select("*")
       .single();
     if (error) throw error;
-    profile = savedProfile || p;
-    if (role === "parent") await renderParentDash();
-    else await renderDash();
+profile = savedProfile || p;
+
+if (role === "parent") {
+  await renderParentDash();
+} else {
+  await renderDash();
+  await resumeTimRequest();
+}
   } catch (e) {
     setupMessage("❌ " + (e.message || "Could not save profile."));
   }
