@@ -2936,13 +2936,22 @@ async function resumeTimRequest() {
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score);
 
+
     if (!matches.length) {
       if (timMsg) {
         timMsg.textContent =
-          "I couldn't find a lesson that clearly matches your question in your class yet. Please choose a subject and topic from your dashboard.";
+          "I couldn't find that exact topic in your class yet.";
       }
+
+      alert(
+        "Tim couldn't find a matching lesson for your request yet.\n\n" +
+        "Please choose a subject from your dashboard, or try another topic. " +
+        "We will expand Tim's lesson coverage as more lessons are added."
+      );
+
       return;
     }
+
 
     // Open the best matching topic's existing lesson screen.
 
