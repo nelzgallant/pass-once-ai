@@ -2982,10 +2982,21 @@ async function resumeTimRequest() {
 
     lessonScores.sort((a, b) => b.score - a.score);
 
+
     // If the student named only the topic, begin with its first lesson.
     const selectedLesson = lessonScores[0].lesson;
 
+    // Prepare the current subject for the lesson's Back button.
+    currentSubject = {
+      id: Number(best.topic.subject_id),
+      name: best.subjectName
+    };
+
+    // Show the lesson screen before displaying its content.
+    show("lessonView");
+
     displayLesson(
+
       selectedLesson,
       best.subjectName,
       best.topic.name,
