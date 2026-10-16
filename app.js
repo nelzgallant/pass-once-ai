@@ -2990,3 +2990,13 @@ async function resumeTimRequest() {
       timMsg.textContent =
         `I found ${best.topic.name}. Let's start with "${selectedLesson.title}"!`;
     }
+
+  } catch (error) {
+    console.error("Tim lesson matching error:", error);
+
+    if (timMsg) {
+      timMsg.textContent =
+        "I couldn't open your lesson just now. Please try again.";
+    }
+  }
+}
