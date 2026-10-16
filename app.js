@@ -147,9 +147,14 @@ async function load() {
       show("setup");
       return;
     }
-    profile = p;
-    if (profile.role === "parent") await renderParentDash();
-    else await renderDash();
+profile = p;
+
+if (profile.role === "parent") {
+  await renderParentDash();
+} else {
+  await renderDash();
+  await resumeTimRequest();
+}
   } catch (e) {
     const msg = e.message || "Could not load your account.";
     if ($("setupMsg") && !$("setup").classList.contains("hidden"))
