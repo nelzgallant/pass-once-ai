@@ -2804,3 +2804,148 @@ if (timStartBtn) {
     $("email")?.focus();
   };
 }
+
+
+async function resumeTimRequest() {
+  const request = (
+    sessionStorage.getItem("passOnceTimRequest") || ""
+  ).trim();
+
+  if (!request || !user || !profile) return;
+
+  if (profile.role === "parent") return;
+
+  const timMsg = $("timMsg");
+
+  if (timMsg) {
+    timMsg.textContent = "Let's find the right lesson for you…";
+  }
+
+  try {
+    // Find the student's actual class.
+    const studentClass = await findClass();
+
+    if (!studentClass) {
+      if (timMsg) {
+        timMsg.textContent =
+          "I couldn't identify your class yet. Please check your student profile.";
+      }
+      return;
+    }
+
+    // Load topics for this class.
+    const { data: topics, error: topicsError } = await sb
+      .from("topics")
+      .select("id,name,subject_id,class_id")
+      .eq("class_id", studentClass.id);
+
+    if (topicsError) throw topicsError;
+
+    if (!topics?.length) {
+      if (timMsg) {
+        timMsg.textContent =
+          "Lessons for your class are not available yet. Please try another topic from your dashboard.";
+      }
+      return;
+    }
+
+    // Load subject names to help match the student's request.
+    const subjectIds = [
+      ...new Set(topics.map((topic) => topic.subject_id))
+    ];
+
+    const { data: subjects, error: subjectsError } = await sb
+      .from("subjects")
+      .select("id,name")
+      .in("id", subjectIds);
+
+    if (subjectsError) throw subjectsError;
+
+    const subjectById = new Map(
+      (subjects || []).map((subject) => [
+        Number(subject.id),
+        subject.name
+      ])
+    );
+
+    // Search topic names and subject names using the request.
+    const normalize = (value) =>
+      String(value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const requestText = normalize(request);
+
+    const words = requestText
+      .split(" ")
+      .filter((word) => word.length > 2);
+
+    const matches = topics
+      .map((topic) => {
+        const topicName = normalize(topic.name);
+        const subjectName = subjectById.get(
+          Number(topic.subject_id)
+        ) || "";
+
+        const combined = normalize(
+          `${subjectName} ${topic.name}`
+        );
+
+        let score = 0;
+
+        if (topicName && requestText.includes(topicName)) {
+          score += 10;
+        }
+
+        if (combined && requestText.includes(combined)) {
+          score += 12;
+        }
+
+        for (const word of words) {
+          if (topicName.includes(word)) score += 2;
+          else if (normalize(subjectName).includes(word)) score += 1;
+        }
+
+        return {
+          topic,
+          subjectName,
+          score
+        };
+      })
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    if (!matches.length) {
+      if (timMsg) {
+        timMsg.textContent =
+          "I couldn't find a lesson that clearly matches your question in your class yet. Please choose a subject and topic from your dashboard.";
+      }
+      return;
+    }
+
+    // Open the best matching topic's existing lesson screen.
+    const best = matches[0];
+
+    sessionStorage.removeItem("passOnceTimRequest");
+
+    await startLesson(
+      Number(best.topic.id),
+      best.subjectName,
+      best.topic.name
+    );
+
+    if (timMsg) {
+      timMsg.textContent =
+        `I found a lesson about ${best.topic.name}. Let's learn together!`;
+    }
+  } catch (error) {
+    console.error("Tim lesson matching error:", error);
+
+    if (timMsg) {
+      timMsg.textContent =
+        "I couldn't open a matching lesson just now. Please try selecting your topic from the dashboard.";
+    }
+  }
+}
