@@ -526,3 +526,19 @@
     overflow-wrap: anywhere;
   }
 }
+
+/* Fix the dashboard subject section width */
+#subjects {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Keep dashboard subject names readable */
+#subjects .dashboard-subject-grid .subject {
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
