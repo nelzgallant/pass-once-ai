@@ -1228,35 +1228,33 @@ if (openProgressBtn) {
    CURRICULUM BROWSER
    First release: JSS1 Mathematics
 -------------------------------- */
-async function openCurriculum(subjectId = 1) {
+
+async function openCurriculum() {
   if (!classRow) classRow = await findClass();
+
   if (!classRow) {
     show("curriculumView");
-    $("curriculumContent").innerHTML = '<div class="card"><p class="muted">We could not identify your class. Please check your student profile.</p></div>';
+    $("curriculumContent").innerHTML =
+      '<div class="card"><p class="muted">We could not identify your class. Please check your student profile.</p></div>';
     return;
   }
 
   show("curriculumView");
-  $("curriculumContent").innerHTML = '<div class="card"><p>Loading your curriculum…</p></div>';
+  $("curriculumContent").innerHTML =
+    '<div class="card"><p>Loading all subjects and weekly topics…</p></div>';
   curriculumReturn = null;
 
   try {
-   
-const { data: subjects, error: subjectsError } = await sb
-  .from("subjects")
-  .select("id,name")
-  .order("name");
+    const { data: subjects, error: subjectsError } = await sb
+      .from("subjects")
+      .select("id,name")
+      .order("name");
 
-if (subjectsError) throw subjectsError;
+    if (subjectsError) throw subjectsError;
 
-const subject = (subjects || []).find(
-  s => Number(s.id) === Number(subjectId)
-);
-
-if (!subject) {
-  throw new Error("The selected subject is not available.");
-}
-
+    if (!subjects || !subjects.length) {
+      throw new Error("No subjects are available yet.");
+    }
 
     const { data: version, error: versionError } = await sb
       .from("curriculum_versions")
@@ -1264,86 +1262,138 @@ if (!subject) {
       .eq("is_current", true)
       .limit(1)
       .maybeSingle();
+
     if (versionError) throw versionError;
-    if (!version) throw new Error("No current curriculum version is available.");
+    if (!version) {
+      throw new Error("No current curriculum version is available.");
+    }
 
     const { data: terms, error: termsError } = await sb
       .from("curriculum_terms")
       .select("id,name,term_number,class_id")
       .eq("class_id", classRow.id)
       .order("term_number");
+
     if (termsError) throw termsError;
 
-    if (!(terms || []).length) {
-      $("curriculumContent").innerHTML = '<div class="card"><p class="muted">No terms have been configured for your class yet.</p></div>';
+    if (!terms || !terms.length) {
+      $("curriculumContent").innerHTML =
+        '<div class="card"><p class="muted">No terms have been configured for your class yet.</p></div>';
       return;
     }
 
     const { data: allWeekly, error: weeklyError } = await sb
       .from("curriculum_weekly_topics")
-      .select("id,curriculum_term_id,week_number,title,content_outline,source_reference")
+      .select("id,curriculum_term_id,subject_id,week_number,title,content_outline,source_reference")
       .eq("curriculum_version_id", version.id)
-      .eq("subject_id", Number(subject.id))
       .in("curriculum_term_id", terms.map(t => t.id))
       .order("week_number");
+
     if (weeklyError) throw weeklyError;
 
-    const weeklyByTerm = new Map();
-    (allWeekly || []).forEach(w => {
-      const key = Number(w.curriculum_term_id);
-      if (!weeklyByTerm.has(key)) weeklyByTerm.set(key, []);
-      weeklyByTerm.get(key).push(w);
-    });
+    const subjectById = new Map(
+      subjects.map(s => [Number(s.id), s])
+    );
+
+    const subjectSections = subjects.map(subject => {
+      const subjectId = Number(subject.id);
+
+      const subjectTopics = (allWeekly || []).filter(
+        w => Number(w.subject_id) === subjectId
+      );
+
+      const termButtons = terms.map(term => {
+        const count = subjectTopics.filter(
+          w => Number(w.curriculum_term_id) === Number(term.id)
+        ).length;
+
+        return `
+          <button
+            class="card curriculum-term-btn"
+            type="button"
+            data-term-id="${Number(term.id)}"
+            data-term-name="${escapeHtml(term.name)}"
+            data-subject-id="${subjectId}"
+            style="text-align:left;cursor:pointer;width:100%"
+          >
+            <strong>${escapeHtml(term.name)}</strong>
+            <p class="muted" style="margin:6px 0 0">
+              ${count ? `${count} weekly topics available` : "Topics coming soon"}
+            </p>
+          </button>
+        `;
+      }).join("");
+
+      return `
+        <section class="card" style="margin-bottom:20px">
+          <h2 style="margin:0 0 12px">
+            ${escapeHtml(subject.name)}
+          </h2>
+
+          <div class="grid" style="gap:10px">
+            ${termButtons}
+          </div>
+
+          <div
+            id="curriculumWeeks-${subjectId}"
+            style="margin-top:16px"
+          ></div>
+        </section>
+      `;
+    }).join("");
 
     $("curriculumContent").innerHTML = `
-      <div class="card" style="margin-bottom:14px">
-     
-<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
-  <p class="muted" style="margin:0">${escapeHtml(classRow.name)} • Curriculum subject</p>
-  <label>
-    <span class="muted">Subject</span>
-    <select id="curriculumSubjectSelect">
-      ${(subjects || []).map(s => `
-        <option value="${Number(s.id)}" ${Number(s.id) === Number(subject.id) ? "selected" : ""}>
-          ${escapeHtml(s.name)}
-        </option>
-      `).join("")}
-    </select>
-  </label>
-</div>
-
-        <h3 style="margin:0">${escapeHtml(version.name || "Current Curriculum")}</h3>
-        <p class="muted" style="margin-bottom:0">Choose a term to see its weekly topics and available lessons.</p>
+      <div class="card" style="margin-bottom:16px">
+        <p class="muted" style="margin:0 0 5px">
+          ${escapeHtml(classRow.name)}
+        </p>
+        <h3 style="margin:0">
+          ${escapeHtml(version.name || "Current Curriculum")}
+        </h3>
+        <p class="muted" style="margin:8px 0 0">
+          Choose a subject and term to explore weekly topics and available lessons.
+        </p>
       </div>
-      <div class="grid" id="curriculumTerms">
-        ${(terms || []).map(term => {
-          const count = (weeklyByTerm.get(Number(term.id)) || []).length;
-          const ready = count > 0;
-          return `<button class="card curriculum-term-btn" type="button" data-term-id="${Number(term.id)}" data-term-name="${escapeHtml(term.name)}" style="text-align:left;cursor:pointer;width:100%">
-            <strong>${escapeHtml(term.name)}</strong>
-            <p class="muted" style="margin:6px 0 0">${ready ? `${count} weekly topics available` : "Curriculum coming soon"}</p>
-          </button>`;
-        }).join("")}
-      </div>
-      <div id="curriculumWeeks" style="margin-top:18px"></div>`;
-    
-const subjectSelect = $("curriculumSubjectSelect");
 
-if (subjectSelect) {
-  subjectSelect.onchange = () => {
-    openCurriculum(Number(subjectSelect.value));
-  };
-}
-
+      ${subjectSections}
+    `;
 
     document.querySelectorAll(".curriculum-term-btn").forEach(btn => {
-      btn.onclick = () => openCurriculumTerm(
-        Number(btn.dataset.termId), btn.dataset.termName, subject, version.id
-      );
+      btn.onclick = () => {
+        const subject = subjectById.get(
+          Number(btn.dataset.subjectId)
+        );
+
+        if (!subject) {
+          console.error("Curriculum subject not found.");
+          return;
+        }
+
+        openCurriculumTerm(
+          Number(btn.dataset.termId),
+          btn.dataset.termName,
+          subject,
+          version.id,
+          `curriculumWeeks-${Number(subject.id)}`
+        );
+      };
     });
+
   } catch (e) {
     console.error("Curriculum loading error:", e);
-    $("curriculumContent").innerHTML = `<div class="card"><p>Could not load the curriculum.</p><p class="muted">${escapeHtml(e.message || "Please try again.")}</p><button class="ghost" id="retryCurriculum" type="button">Try again</button></div>`;
+
+    $("curriculumContent").innerHTML = `
+      <div class="card">
+        <p>Could not load the curriculum.</p>
+        <p class="muted">
+          ${escapeHtml(e.message || "Please try again.")}
+        </p>
+        <button class="ghost" id="retryCurriculum" type="button">
+          Try again
+        </button>
+      </div>
+    `;
+
     const retry = $("retryCurriculum");
     if (retry) retry.onclick = openCurriculum;
   }
