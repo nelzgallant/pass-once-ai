@@ -681,7 +681,7 @@
 
 
 
-/* Pass Once AI — Desktop Learning Progress side panel */
+/* Pass Once AI — Smooth desktop progress panel */
 @media (min-width: 651px) {
   #progressPanel:not(.hidden) {
     position: fixed;
@@ -694,6 +694,14 @@
     z-index: 1000;
     box-sizing: border-box;
     padding: 0;
+
+    /* Soft overlay and elegant panel shadow */
+    box-shadow:
+      0 0 0 100vmax rgba(15, 23, 42, 0.22),
+      0 12px 40px rgba(15, 23, 42, 0.18);
+
+    /* Smooth entrance */
+    animation: progressSlideIn 280ms ease-out both;
   }
 
   #progressPanel:not(.hidden) > .card {
@@ -701,15 +709,37 @@
     max-width: none;
     margin: 0;
     box-sizing: border-box;
+    border-radius: 18px;
+  }
+
+  @keyframes progressSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(32px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Respect reduced-motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    #progressPanel:not(.hidden) {
+      animation: none;
+    }
   }
 }
 
-/* Keep the existing phone layout */
+/* Preserve the existing phone layout */
 @media (max-width: 650px) {
   #progressPanel:not(.hidden) {
     position: static;
     width: 100%;
     max-height: none;
     overflow: visible;
+    box-shadow: none;
+    animation: none;
   }
 }
+
