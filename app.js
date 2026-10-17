@@ -3598,17 +3598,31 @@ const words = requestText
         
         // Avoid recommending decimal-specific lessons for
         // ordinary multiplication questions.
+        
+        // Avoid recommending specialised lessons when the
+        // student has not requested that specific concept.
         const requestsDecimals = requestedConcepts.some(
           (concept) => concept.name === "decimals"
         );
 
+        const requestsFractions = requestedConcepts.some(
+          (concept) => concept.name === "fractions"
+        );
+
         if (
-          requestedIntents.includes("multiplication") &&
-          title.includes("decimal") &&
-          !requestsDecimals
+          !requestsDecimals &&
+          title.includes("decimal")
         ) {
           lessonScore = -100;
         }
+
+        if (
+          !requestsFractions &&
+          title.includes("fraction")
+        ) {
+          lessonScore = -100;
+        }
+
 
         return { lesson, score: lessonScore };
 
