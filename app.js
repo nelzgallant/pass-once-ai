@@ -2954,6 +2954,171 @@ if (timStartBtn) {
   };
 }
 
+function solveTimMathQuestion(question) {
+  const text = String(question || "").toLowerCase();
+
+  // Recognise a simple calculation with two numbers.
+  const match = text.match(
+    /(-?\d+(?:\.\d+)?(?:\s*\/\s*-?\d+(?:\.\d+)?)?)\s*(\+|addition|plus|−|–|-|subtraction|minus|×|x|\*|multiplication|times|÷|\/|division|divided by)\s*(-?\d+(?:\.\d+)?(?:\s*\/\s*-?\d+(?:\.\d+)?)?)/i
+  );
+
+  if (!match) return null;
+
+  const parseNumber = (value) => {
+    const parts = value.replace(/\s/g, "").split("/");
+
+    if (parts.length === 2) {
+      const numerator = Number(parts[0]);
+      const denominator = Number(parts[1]);
+
+      if (
+        !Number.isFinite(numerator) ||
+        !Number.isFinite(denominator) ||
+        denominator === 0
+      ) {
+        return null;
+      }
+
+      return {
+        n: numerator,
+        d: denominator
+      };
+    }
+
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) return null;
+
+    const decimalPlaces = (value.split(".")[1] || "").length;
+    const denominator = 10 ** decimalPlaces;
+
+    return {
+      n: Math.round(number * denominator),
+      d: denominator
+    };
+  };
+
+  const gcd = (a, b) => {
+    a = Math.abs(a);
+    b = Math.abs(b);
+
+    while (b) {
+      const remainder = a % b;
+      a = b;
+      b = remainder;
+    }
+
+    return a || 1;
+  };
+
+  const format = (fraction) => {
+    let n = fraction.n;
+    let d = fraction.d;
+
+    if (d < 0) {
+      n = -n;
+      d = -d;
+    }
+
+    const divisor = gcd(n, d);
+    n /= divisor;
+    d /= divisor;
+
+    if (d === 1) return String(n);
+
+    return `${n}/${d}`;
+  };
+
+  const a = parseNumber(match[1]);
+  const b = parseNumber(match[3]);
+
+  if (!a || !b) return null;
+
+  const operatorText = match[2].toLowerCase();
+  let operator;
+
+  if (["+", "addition", "plus"].includes(operatorText)) {
+    operator = "+";
+  } else if (
+    ["−", "–", "-", "subtraction", "minus"].includes(operatorText)
+  ) {
+    operator = "-";
+  } else if (
+    ["×", "x", "*", "multiplication", "times"].includes(operatorText)
+  ) {
+    operator = "*";
+  } else {
+    operator = "/";
+  }
+
+  if (operator === "/" && b.n === 0) {
+    return {
+      answer: "Undefined",
+      steps: ["You cannot divide by zero."]
+    };
+  }
+
+  let result;
+  const steps = [];
+
+  if (operator === "+" || operator === "-") {
+    const numerator =
+      operator === "+"
+        ? a.n * b.d + b.n * a.d
+        : a.n * b.d - b.n * a.d;
+
+    const denominator = a.d * b.d;
+
+    steps.push(
+      `Step 1: Use a common denominator: ${a.n}/${a.d} and ${b.n}/${b.d}.`
+    );
+
+    steps.push(
+      `Step 2: ${operator === "+" ? "Add" : "Subtract"} the numerators: (${a.n} × ${b.d}) ${operator} (${b.n} × ${a.d}) = ${numerator}.`
+    );
+
+    steps.push(`Step 3: Keep the denominator: ${denominator}.`);
+
+    result = { n: numerator, d: denominator };
+  } else if (operator === "*") {
+    result = {
+      n: a.n * b.n,
+      d: a.d * b.d
+    };
+
+    steps.push("Step 1: Multiply the numerators.");
+    steps.push(`${a.n} × ${b.n} = ${result.n}.`);
+    steps.push("Step 2: Multiply the denominators.");
+    steps.push(`${a.d} × ${b.d} = ${result.d}.`);
+  } else {
+    result = {
+      n: a.n * b.d,
+      d: a.d * b.n
+    };
+
+    steps.push("Step 1: Keep the first fraction and flip the second.");
+    steps.push(
+      `${a.n}/${a.d} ÷ ${b.n}/${b.d} = ${a.n}/${a.d} × ${b.d}/${b.n}.`
+    );
+    steps.push("Step 2: Multiply the numerators and denominators.");
+    steps.push(`${a.n} × ${b.d} = ${result.n}; ${a.d} × ${b.n} = ${result.d}.`);
+  }
+
+  const answer = format(result);
+  const simplified = answer !== `${result.n}/${result.d}`;
+
+  if (simplified) {
+    steps.push(`Step ${steps.length + 1}: Simplify the fraction.`);
+  }
+
+  steps.push(`Final answer: ${answer}`);
+
+  return {
+    answer,
+    steps
+  };
+}
+
 
 async function resumeTimRequest() {
   const request = (
@@ -2968,7 +3133,15 @@ async function resumeTimRequest() {
   if (profile.role === "parent") return;
 
   const timMsg = $("timMsg");
+// Try solving a supported maths calculation first.
+const mathSolution = solveTimMathQuestion(request);
 
+if (mathSolution && timMsg) {
+  timMsg.textContent =
+    "Let's solve it step by step:\n\n" +
+    mathSolution.steps.join("\n") +
+    "\n\nFinal answer: " + mathSolution.answer;
+}
   if (timMsg) {
     timMsg.textContent = "Let's find the right lesson for you…";
   }
