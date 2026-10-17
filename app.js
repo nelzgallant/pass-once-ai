@@ -3384,12 +3384,9 @@ if (timMsg) {
     const studentClass = await findClass();
 
     if (!studentClass) {
-      if (timMsg) {
-        timMsg.textContent =
-          "I couldn't identify your class yet. Please check your student profile.";
-      }
-      return;
-    }
+  await showTimAIAnswer(request);
+  return;
+}
 
     // Load topics for this class.
     const { data: topics, error: topicsError } = await sb
@@ -3400,12 +3397,9 @@ if (timMsg) {
     if (topicsError) throw topicsError;
 
     if (!topics?.length) {
-      if (timMsg) {
-        timMsg.textContent =
-          "Lessons for your class are not available yet. Please try another topic from your dashboard.";
-      }
-      return;
-    }
+  await showTimAIAnswer(request);
+  return;
+}
 
     // Load subject names to help match the student's request.
     const subjectIds = [
