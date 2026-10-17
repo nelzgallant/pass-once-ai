@@ -3637,9 +3637,38 @@ const words = requestText
     }
 
 
-    const selectedLesson =
-      best.scoredLessons.find((item) => item.score > 0)?.lesson ||
-      lessons[0];
+    
+    // Select only a lesson with a positive relevance score.
+    const selectedMatch = best.scoredLessons.find(
+      (item) => item.score > 0
+    );
+
+    const selectedLesson = selectedMatch?.lesson;
+
+    // If no lesson matches, keep the maths solution but
+    // don't recommend an unrelated lesson.
+    if (!selectedLesson) {
+      if (mathSolution && solutionCard) {
+        solutionCard.classList.remove("hidden");
+
+        const learnMore = $("timLearnMore");
+        if (learnMore) {
+          learnMore.disabled = true;
+        }
+
+        const solutionMsg = $("timSolutionMsg");
+        if (solutionMsg) {
+          solutionMsg.textContent =
+            "I solved your maths question, but a closely matching lesson isn't available in your class yet.";
+        }
+      } else if (timMsg) {
+        timMsg.textContent =
+          "I couldn't find a closely matching lesson in your class yet.";
+      }
+
+      return;
+    }
+
 
     // Prepare the selected lesson for the Learn More button.
     currentSubject = {
