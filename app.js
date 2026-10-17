@@ -3616,35 +3616,78 @@ const words = requestText
       return;
     }
 
+
     const selectedLesson =
       best.scoredLessons.find((item) => item.score > 0)?.lesson ||
       lessons[0];
 
-
-    // Prepare the current subject for the lesson's Back button.
+    // Prepare the selected lesson for the Learn More button.
     currentSubject = {
       id: Number(best.topic.subject_id),
       name: best.subjectName
     };
 
-    // Show the lesson screen before displaying its content.
-    show("lessonView");
+    const learnMore = $("timLearnMore");
+    const solutionMsg = $("timSolutionMsg");
 
-    displayLesson(
+    if (mathSolution && solutionCard) {
+      // Keep Tim's answer visible in the CBT practice area.
+      solutionCard.classList.remove("hidden");
 
-      selectedLesson,
-      best.subjectName,
-      best.topic.name,
-      Number(best.topic.id),
-      lessons
-    );
+      if (solutionQuestion) {
+        solutionQuestion.textContent = "Question: " + request;
+      }
+
+      if (solutionSteps) {
+        solutionSteps.textContent = mathSolution.steps.join("\n");
+        solutionSteps.style.whiteSpace = "pre-line";
+      }
+
+      if (solutionAnswer) {
+        solutionAnswer.textContent =
+          "Final answer: " + mathSolution.answer;
+      }
+
+      if (solutionMsg) {
+        solutionMsg.textContent =
+          `Want to learn more? I found "${selectedLesson.title}" for you.`;
+      }
+
+      if (learnMore) {
+        learnMore.disabled = false;
+
+        learnMore.onclick = () => {
+          show("lessonView");
+
+          displayLesson(
+            selectedLesson,
+            best.subjectName,
+            best.topic.name,
+            Number(best.topic.id),
+            lessons
+          );
+        };
+      }
+    } else {
+      // Preserve the existing lesson flow for other questions.
+      show("lessonView");
+
+      displayLesson(
+        selectedLesson,
+        best.subjectName,
+        best.topic.name,
+        Number(best.topic.id),
+        lessons
+      );
+
+      if (timMsg) {
+        timMsg.textContent =
+          `I found ${best.topic.name}. Let's start with "${selectedLesson.title}"!`;
+      }
+    }
 
     sessionStorage.removeItem("passOnceTimRequest");
 
-    if (timMsg) {
-      timMsg.textContent =
-        `I found ${best.topic.name}. Let's start with "${selectedLesson.title}"!`;
-    }
 
   } catch (error) {
     console.error("Tim lesson matching error:", error);
