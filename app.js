@@ -3061,6 +3061,38 @@ function solveTimMathQuestion(question) {
   let result;
   const steps = [];
 
+  // Use natural explanations for whole-number calculations.
+  const isWholeNumber =
+    Number.isInteger(a.n / a.d) &&
+    Number.isInteger(b.n / b.d);
+
+  if (isWholeNumber && (operator === "+" || operator === "-")) {
+    const first = a.n / a.d;
+    const second = b.n / b.d;
+    const answer = operator === "+" ? first + second : first - second;
+
+    if (operator === "+") {
+      steps.push(`Let's start with ${first}.`);
+      steps.push(`Now add ${second} more.`);
+      steps.push(
+        `Adding ${second} to ${first} gives us ${answer}.`
+      );
+    } else {
+      steps.push(`We start with ${first}.`);
+      steps.push(`Now take away ${second}.`);
+      steps.push(
+        `${first} minus ${second} equals ${answer}.`
+      );
+    }
+
+    steps.push(`Final answer: ${answer}`);
+
+    return {
+      answer: String(answer),
+      steps
+    };
+  }
+
   if (operator === "+" || operator === "-") {
     const numerator =
       operator === "+"
