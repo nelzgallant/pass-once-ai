@@ -3353,7 +3353,7 @@ const getTimLearningIntent = (text) => {
   };
 };
 
-const timLearningIntent = getTimLearningIntent(requestText);
+const timLearningIntent = getTimLearningIntent(request);
 
 
 const ignoredWords = new Set([
