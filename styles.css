@@ -680,26 +680,36 @@
 }
 
 
-/* Desktop layout refinement — Pass Once AI */
+
+/* Pass Once AI — Desktop Learning Progress side panel */
 @media (min-width: 651px) {
+  #progressPanel:not(.hidden) {
+    position: fixed;
+    top: 100px;
+    right: 24px;
+    bottom: 24px;
+    width: min(560px, 46vw);
+    max-height: calc(100vh - 124px);
+    overflow-y: auto;
+    z-index: 1000;
+    box-sizing: border-box;
+    padding: 0;
+  }
 
-  /* Move only the Learning Progress panel to the right */
-  #progressPanel {
+  #progressPanel:not(.hidden) > .card {
     width: 100%;
+    max-width: none;
+    margin: 0;
     box-sizing: border-box;
   }
+}
 
-  #progressPanel > .card {
+/* Keep the existing phone layout */
+@media (max-width: 650px) {
+  #progressPanel:not(.hidden) {
+    position: static;
     width: 100%;
-    max-width: 900px;
-    margin-left: auto;
-    margin-right: 0;
-    box-sizing: border-box;
+    max-height: none;
+    overflow: visible;
   }
-
-  /* Bring the dashboard subjects section slightly upwards */
-  #subjects {
-    margin-top: -8px;
-  }
-
 }
