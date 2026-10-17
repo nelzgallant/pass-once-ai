@@ -3950,12 +3950,12 @@ const words = requestText
     sessionStorage.removeItem("passOnceTimRequest");
 
 
-  } catch (error) {
-    console.error("Tim lesson matching error:", error);
+  
+} catch (error) {
+  console.error("Tim lesson matching error:", error);
 
-    if (timMsg) {
-      timMsg.textContent =
-        "I couldn't open your lesson just now. Please try again.";
-    }
-  }
+  // If the database search fails, try Tim's AI tutor.
+  await showTimAIAnswer(request);
+}
+
 }
