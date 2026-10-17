@@ -3074,7 +3074,17 @@ if (
 
     const first = a.n / a.d;
     const second = b.n / b.d;
-    const answer = operator === "+" ? first + second : first - second;
+    
+let answer;
+
+if (operator === "+") {
+  answer = first + second;
+} else if (operator === "-") {
+  answer = first - second;
+} else if (["*", "×", "x"].includes(operator)) {
+  answer = first * second;
+}
+
 
     
     if (operator === "+") {
@@ -3095,7 +3105,6 @@ if (
     steps.push(`Final answer: ${answer}`);
 
 
-    steps.push(`Final answer: ${answer}`);
 
     return {
       answer: String(answer),
