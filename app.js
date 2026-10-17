@@ -3257,6 +3257,78 @@ if (timMsg) {
 }
 
 
+  // Send non-maths questions to Tim's AI tutor.
+  if (!mathSolution) {
+    try {
+      const { data, error } = await sb.functions.invoke(
+        "tim-tutor",
+        {
+          body: {
+            question: request,
+            subject: currentSubject?.name || "",
+            classLevel:
+              profile.level ||
+              profile.class_level ||
+              profile.class_name ||
+              "",
+            language:
+              profile.learning_language ||
+              profile.language ||
+              "English"
+          }
+        }
+      );
+
+      if (error) throw error;
+
+      if (!data?.answer) {
+        throw new Error("Tim received no AI answer.");
+      }
+
+      if (solutionQuestion) {
+        solutionQuestion.textContent = "Question: " + request;
+      }
+
+      if (solutionSteps) {
+        solutionSteps.textContent = data.answer;
+        solutionSteps.style.whiteSpace = "pre-wrap";
+      }
+
+      if (solutionAnswer) {
+        solutionAnswer.textContent = "Tim's AI Explanation";
+      }
+
+      if (solutionCard) {
+        solutionCard.classList.remove("hidden");
+      }
+
+      const learnMore = $("timLearnMore");
+      if (learnMore) {
+        learnMore.disabled = true;
+      }
+
+      const solutionMsg = $("timSolutionMsg");
+      if (solutionMsg) {
+        solutionMsg.textContent =
+          "Tim has prepared an AI explanation for you.";
+      }
+
+      if (timMsg) {
+        timMsg.textContent =
+          "Your question has been answered by Tim's AI tutor.";
+      }
+
+      return;
+    } catch (error) {
+      console.error("Tim AI request error:", error);
+
+      if (timMsg) {
+        timMsg.textContent =
+          "Tim's AI is unavailable right now. I'll try finding a matching lesson instead.";
+      }
+    }
+  }
+
   try {
     // Find the student's actual class.
     const studentClass = await findClass();
