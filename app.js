@@ -3294,11 +3294,16 @@ async function showTimAIAnswer(request) {
       solutionCard.classList.remove("hidden");
     }
 
-    const learnMore = $("timLearnMore");
-    if (learnMore) {
-      learnMore.disabled = true;
-      learnMore.onclick = null;
-    }
+    
+const learnMore = $("timLearnMore");
+if (learnMore) {
+  learnMore.disabled = true;
+  learnMore.onclick = null;
+  learnMore.style.opacity = "0.55";
+  learnMore.style.cursor = "not-allowed";
+  learnMore.title = "No matching lesson is available for this answer.";
+}
+
 
     if (solutionMsg) {
       solutionMsg.textContent =
