@@ -3596,8 +3596,6 @@ const words = requestText
         }
 
         
-        // Avoid recommending decimal-specific lessons for
-        // ordinary multiplication questions.
         
         // Avoid recommending specialised lessons when the
         // student has not requested that specific concept.
@@ -3609,16 +3607,21 @@ const words = requestText
           (concept) => concept.name === "fractions"
         );
 
-        if (
-          !requestsDecimals &&
-          title.includes("decimal")
-        ) {
+        const requestsPercentages = requestedConcepts.some(
+          (concept) => concept.name === "percentages"
+        );
+
+        if (!requestsDecimals && title.includes("decimal")) {
+          lessonScore = -100;
+        }
+
+        if (!requestsFractions && title.includes("fraction")) {
           lessonScore = -100;
         }
 
         if (
-          !requestsFractions &&
-          title.includes("fraction")
+          !requestsPercentages &&
+          (title.includes("percentage") || title.includes("percent"))
         ) {
           lessonScore = -100;
         }
