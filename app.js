@@ -3132,19 +3132,43 @@ async function resumeTimRequest() {
 
   if (profile.role === "parent") return;
 
-  const timMsg = $("timMsg");
+  
+const timMsg = $("timMsg");
+
 // Try solving a supported maths calculation first.
 const mathSolution = solveTimMathQuestion(request);
 
-if (mathSolution && timMsg) {
-  timMsg.textContent =
-    "Let's solve it step by step:\n\n" +
-    mathSolution.steps.join("\n") +
-    "\n\nFinal answer: " + mathSolution.answer;
+const solutionCard = $("timSolutionCard");
+const solutionQuestion = $("timSolutionQuestion");
+const solutionSteps = $("timSolutionSteps");
+const solutionAnswer = $("timSolutionAnswer");
+
+if (solutionCard) {
+  solutionCard.classList.add("hidden");
 }
-  if (timMsg) {
-    timMsg.textContent = "Let's find the right lesson for you…";
+
+if (mathSolution && solutionCard) {
+  if (solutionQuestion) {
+    solutionQuestion.textContent = "Question: " + request;
   }
+
+  if (solutionSteps) {
+    solutionSteps.textContent = mathSolution.steps.join("\n");
+    solutionSteps.style.whiteSpace = "pre-line";
+  }
+
+  if (solutionAnswer) {
+    solutionAnswer.textContent =
+      "Final answer: " + mathSolution.answer;
+  }
+
+  solutionCard.classList.remove("hidden");
+}
+
+if (timMsg) {
+  timMsg.textContent = "Let's find the right lesson for you…";
+}
+
 
   try {
     // Find the student's actual class.
