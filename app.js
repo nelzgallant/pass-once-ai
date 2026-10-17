@@ -3031,6 +3031,81 @@ async function resumeTimRequest() {
     const requestText = normalize(request);
 
 
+const getTimLearningIntent = (text) => {
+  const normalized = normalize(text);
+
+  const intentGroups = [
+    {
+      name: "addition",
+      words: [
+        "addition",
+        "add",
+        "adding",
+        "sum",
+        "plus",
+        "summation",
+        "total"
+      ]
+    },
+    {
+      name: "subtraction",
+      words: [
+        "subtraction",
+        "subtract",
+        "subtracting",
+        "minus",
+        "difference",
+        "take away"
+      ]
+    },
+    {
+      name: "multiplication",
+      words: [
+        "multiplication",
+        "multiply",
+        "multiplying",
+        "product",
+        "times"
+      ]
+    },
+    {
+      name: "division",
+      words: [
+        "division",
+        "divide",
+        "dividing",
+        "quotient",
+        "sharing equally"
+      ]
+    },
+    {
+      name: "simplification",
+      words: [
+        "simplify",
+        "simplifying",
+        "simplification",
+        "reduce",
+        "lowest terms"
+      ]
+    }
+  ];
+
+  const matchedIntents = intentGroups
+    .filter((group) =>
+      group.words.some((word) =>
+        (` ${normalized} `).includes(` ${word} `)
+      )
+    )
+    .map((group) => group.name);
+
+  return {
+    text: normalized,
+    intents: matchedIntents
+  };
+};
+
+const timLearningIntent = getTimLearningIntent(requestText);
+
 
 const ignoredWords = new Set([
   "explain",
@@ -3095,62 +3170,119 @@ const words = requestText
     }
 
 
-    const matches = topics
-      .map((topic) => {
-        const topicName = normalize(topic.name);
-        const subjectName =
-          subjectById.get(Number(topic.subject_id)) || "";
 
-        const combined = normalize(
-          `${subjectName} ${topic.name}`
+const matches = topics
+  .map((topic) => {
+    const topicName = normalize(topic.name);
+    const subjectName =
+      subjectById.get(Number(topic.subject_id)) || "";
+
+    const combined = normalize(
+      `${subjectName} ${topic.name}`
+    );
+
+    const topicLessons =
+      lessonsByTopic.get(Number(topic.id)) || [];
+
+    let score = 0;
+
+    // Strong matches for topic and subject names.
+    if (topicName && requestText.includes(topicName)) {
+      score += 10;
+    }
+
+    if (combined && requestText.includes(combined)) {
+      score += 12;
+    }
+
+    // Match the student's learning skill to the lesson.
+    for (const intent of timLearningIntent.intents) {
+      const intentWords = {
+        addition: [
+          "addition", "add", "adding", "sum", "plus",
+          "summation", "total"
+        ],
+        subtraction: [
+          "subtraction", "subtract", "subtracting",
+          "minus", "difference", "take away"
+        ],
+        multiplication: [
+          "multiplication", "multiply", "multiplying",
+          "product", "times"
+        ],
+        division: [
+          "division", "divide", "dividing",
+          "quotient", "sharing equally"
+        ],
+        simplification: [
+          "simplify", "simplifying", "simplification",
+          "reduce", "lowest terms"
+        ]
+      }[intent] || [];
+
+      const topicText = normalize(topic.name);
+
+      for (const lesson of topicLessons) {
+        const title = normalize(lesson.title);
+        const content = normalize(lesson.content);
+
+        const titleHasIntent = intentWords.some((word) =>
+          (` ${title} `).includes(` ${word} `)
         );
 
-        const topicLessons =
-          lessonsByTopic.get(Number(topic.id)) || [];
+        const contentHasIntent = intentWords.some((word) =>
+          (` ${content} `).includes(` ${word} `)
+        );
 
-        let score = 0;
+        const requestHasTopicWord = words.some((word) =>
+          (` ${topicText} `).includes(` ${word} `)
+        );
 
-        // Strong matches for topic and subject names.
-        if (topicName && requestText.includes(topicName)) {
-          score += 10;
-        }
-
-        if (combined && requestText.includes(combined)) {
+        // Strongly reward the requested skill in a lesson title.
+        if (titleHasIntent) {
           score += 12;
-        }
 
-        for (const word of words) {
-          if (topicName.includes(word)) {
-            score += 2;
-          } else if (normalize(subjectName).includes(word)) {
-            score += 1;
+          if (requestHasTopicWord) {
+            score += 5;
           }
+        } else if (contentHasIntent) {
+          // Content is useful, but weaker than a title match.
+          score += 3;
         }
+      }
+    }
 
-        // Also search lesson titles and lesson content.
-        for (const lesson of topicLessons) {
-          const title = normalize(lesson.title);
-          const content = normalize(lesson.content);
+    for (const word of words) {
+      if (topicName.includes(word)) {
+        score += 2;
+      } else if (normalize(subjectName).includes(word)) {
+        score += 1;
+      }
+    }
 
-          if (title && requestText.includes(title)) {
-            score += 8;
-          }
+    // Search lesson titles and content for other relevant words.
+    for (const lesson of topicLessons) {
+      const title = normalize(lesson.title);
+      const content = normalize(lesson.content);
 
-          for (const word of words) {
-            if (title.includes(word)) score += 4;
-            if (content.includes(word)) score += 2;
-          }
-        }
+      if (title && requestText.includes(title)) {
+        score += 8;
+      }
 
-        return {
-          topic,
-          subjectName,
-          score
-        };
-      })
-      .filter((item) => item.score > 0)
-      .sort((a, b) => b.score - a.score);
+      for (const word of words) {
+        if (title.includes(word)) score += 4;
+        if (content.includes(word)) score += 2;
+      }
+    }
 
+    return {
+      topic,
+      subjectName,
+      score
+    };
+  })
+  .filter((item) => item.score > 0)
+  .sort((a, b) => b.score - a.score);
 
 
 if (!matches.length) {
