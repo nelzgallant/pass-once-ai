@@ -3644,8 +3644,18 @@ const words = requestText
       };
     });
 
+    
+    // Do not guess a lesson for a standalone maths calculation.
+    const isStandaloneMathExpression =
+      /^[\d\s()+\-−×x*÷\/.]+$/.test(String(request || "").trim());
+
+    if (mathSolution && isStandaloneMathExpression) {
+      matches.length = 0;
+    }
+
     // Prefer topics whose lessons best match the whole request.
     matches.sort((a, b) => b.score - a.score);
+
 
     if (!matches.length || matches[0].score <= 0) {
   if (mathSolution && solutionCard) {
