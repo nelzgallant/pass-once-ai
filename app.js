@@ -3195,7 +3195,44 @@ const matches = topics
       score += 12;
     }
 
-    // Match the student's learning skill to the lesson.
+    
+    // Match the requested skill and the mathematical concept together.
+    const requestHasFractions =
+      /\b(fraction|fractions)\b/.test(requestText);
+
+    const requestHasDecimals =
+      /\b(decimal|decimals)\b/.test(requestText);
+
+    const requestHasPercentages =
+      /\b(percent|percentage|percentages)\b/.test(requestText);
+
+    const topicHasFractions =
+      /\bfractions?\b/.test(topicName);
+
+    const topicHasOperations =
+      /\boperations?\b/.test(topicName);
+
+    const topicHasDecimals =
+      /\bdecimals?\b/.test(topicName);
+
+    if (requestHasFractions && topicHasFractions) {
+      score += 15;
+    }
+
+    if (requestHasFractions && topicHasOperations) {
+      score += 8;
+    }
+
+    if (requestHasDecimals && topicHasDecimals) {
+      score += 15;
+    }
+
+    if (requestHasPercentages &&
+        /\bpercentages?\b/.test(topicName)) {
+      score += 15;
+    }
+
+    // Reward lessons that match the requested operation.
     for (const intent of timLearningIntent.intents) {
       const intentWords = {
         addition: [
@@ -3220,33 +3257,21 @@ const matches = topics
         ]
       }[intent] || [];
 
-      const topicText = normalize(topic.name);
-
       for (const lesson of topicLessons) {
         const title = normalize(lesson.title);
         const content = normalize(lesson.content);
 
-        const titleHasIntent = intentWords.some((word) =>
+        const titleMatchesIntent = intentWords.some((word) =>
           (` ${title} `).includes(` ${word} `)
         );
 
-        const contentHasIntent = intentWords.some((word) =>
+        const contentMatchesIntent = intentWords.some((word) =>
           (` ${content} `).includes(` ${word} `)
         );
 
-        const requestHasTopicWord = words.some((word) =>
-          (` ${topicText} `).includes(` ${word} `)
-        );
-
-        // Strongly reward the requested skill in a lesson title.
-        if (titleHasIntent) {
+        if (titleMatchesIntent) {
           score += 12;
-
-          if (requestHasTopicWord) {
-            score += 5;
-          }
-        } else if (contentHasIntent) {
-          // Content is useful, but weaker than a title match.
+        } else if (contentMatchesIntent) {
           score += 3;
         }
       }
