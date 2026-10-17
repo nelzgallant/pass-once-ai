@@ -3576,12 +3576,26 @@ const words = requestText
     matches.sort((a, b) => b.score - a.score);
 
     if (!matches.length || matches[0].score <= 0) {
-      if (timMsg) {
-        timMsg.textContent =
-          "I couldn't find a matching topic or lesson in your class yet.";
-      }
-      return;
+  if (mathSolution && solutionCard) {
+    solutionCard.classList.remove("hidden");
+
+    const learnMore = $("timLearnMore");
+    if (learnMore) {
+      learnMore.disabled = true;
     }
+
+    const solutionMsg = $("timSolutionMsg");
+    if (solutionMsg) {
+      solutionMsg.textContent =
+        "I solved your maths question, but couldn't find a matching lesson in your class yet.";
+    }
+  } else if (timMsg) {
+    timMsg.textContent =
+      "I couldn't find a matching topic or lesson in your class yet.";
+  }
+
+  return;
+}
 
     const best = matches[0];
 
