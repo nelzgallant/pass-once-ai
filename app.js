@@ -3315,15 +3315,65 @@ if (!matches.length) {
       return;
     }
 
-    // Prefer a lesson whose title matches the student's request.
+
+    // Select the lesson that best matches the student's request.
     const lessonScores = lessons.map((lesson) => {
       const title = normalize(lesson.title);
+      const content = normalize(lesson.content);
+
       let score = 0;
 
-      if (title && requestText.includes(title)) score += 10;
+      // Exact lesson-title match.
+      if (title && requestText.includes(title)) {
+        score += 20;
+      }
 
+      // Match the requested learning skill.
+      const intentWords = {
+        addition: [
+          "addition", "add", "adding", "sum", "plus",
+          "summation", "total"
+        ],
+        subtraction: [
+          "subtraction", "subtract", "subtracting",
+          "minus", "difference", "take away"
+        ],
+        multiplication: [
+          "multiplication", "multiply", "multiplying",
+          "product", "times"
+        ],
+        division: [
+          "division", "divide", "dividing",
+          "quotient", "sharing equally"
+        ],
+        simplification: [
+          "simplify", "simplifying", "simplification",
+          "reduce", "lowest terms"
+        ]
+      };
+
+      for (const intent of timLearningIntent.intents) {
+        const terms = intentWords[intent] || [];
+
+        const titleMatchesIntent = terms.some((term) =>
+          (` ${title} `).includes(` ${term} `)
+        );
+
+        const contentMatchesIntent = terms.some((term) =>
+          (` ${content} `).includes(` ${term} `)
+        );
+
+        if (titleMatchesIntent) {
+          score += 30;
+        } else if (contentMatchesIntent) {
+          score += 5;
+        }
+      }
+
+      // Other meaningful words from the student's request.
       for (const word of words) {
         if (title.includes(word)) score += 2;
+        if (content.includes(word)) score += 1;
       }
 
       return { lesson, score };
@@ -3331,9 +3381,11 @@ if (!matches.length) {
 
     lessonScores.sort((a, b) => b.score - a.score);
 
-
-    // If the student named only the topic, begin with its first lesson.
-    const selectedLesson = lessonScores[0].lesson;
+    // Prefer the first lesson only when no lesson has a positive match.
+    const selectedLesson =
+      lessonScores.length > 0 && lessonScores[0].score > 0
+        ? lessonScores[0].lesson
+        : lessons[0];
 
     // Prepare the current subject for the lesson's Back button.
     currentSubject = {
