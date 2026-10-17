@@ -2955,6 +2955,40 @@ if (timStartBtn) {
 }
 
 function solveTimMathQuestion(question) {
+  
+  // Tim: Solve simple past-and-future age word problems.
+  const ageQuestion = String(question || "").toLowerCase();
+
+  const pastAgeMatch = ageQuestion.match(
+    /\b(?:was|were)\s+(\d+)\s+years?\s+old\s+(\d+)\s+years?\s+ago\b/
+  );
+
+  const futureYearsMatch = ageQuestion.match(
+    /\b(?:in|after)\s+(\d+)\s+years?(?:\s+time)?\b/
+  );
+
+  if (pastAgeMatch && futureYearsMatch) {
+    const ageInPast = Number(pastAgeMatch[1]);
+    const yearsAgo = Number(pastAgeMatch[2]);
+    const yearsIntoFuture = Number(futureYearsMatch[1]);
+
+    const presentAge = ageInPast + yearsAgo;
+    const futureAge = presentAge + yearsIntoFuture;
+
+    const steps = [
+      `Step 1: Five years ago, the man was ${ageInPast} years old. We add ${yearsAgo} years to find his present age.`,
+      `${ageInPast} + ${yearsAgo} = ${presentAge}.`,
+      `Step 2: In ${yearsIntoFuture} years, he will be ${presentAge} years old plus ${yearsIntoFuture} more years.`,
+      `${presentAge} + ${yearsIntoFuture} = ${futureAge}.`,
+      `Final answer: ${futureAge} years old.`
+    ];
+
+    return {
+      answer: `${futureAge} years old`,
+      steps
+    };
+  }
+
   const text = String(question || "").toLowerCase();
 
   // Recognise a simple calculation with two numbers.
