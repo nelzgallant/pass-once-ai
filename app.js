@@ -3327,6 +3327,26 @@ const getTimLearningIntent = (text) => {
     )
     .map((group) => group.name);
 
+  // Recognise mathematical symbols as learning intents.
+  const rawText = String(text || "").toLowerCase();
+
+  const operationPatterns = [
+    { name: "addition", pattern: /\d\s*\+\s*\d/ },
+    { name: "subtraction", pattern: /\d\s*-\s*\d/ },
+    { name: "multiplication", pattern: /\d\s*(?:×|\*|x)\s*\d/ },
+    { name: "division", pattern: /\d\s*(?:÷|\/)\s*\d/ }
+  ];
+
+  for (const operation of operationPatterns) {
+    if (
+      operation.pattern.test(rawText) &&
+      !matchedIntents.includes(operation.name)
+    ) {
+      matchedIntents.push(operation.name);
+    }
+  }
+
+  
   return {
     text: normalized,
     intents: matchedIntents
