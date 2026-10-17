@@ -2975,13 +2975,15 @@ function solveTimMathQuestion(question) {
     const presentAge = ageInPast + yearsAgo;
     const futureAge = presentAge + yearsIntoFuture;
 
-    const steps = [
-      `Step 1: Five years ago, the man was ${ageInPast} years old. We add ${yearsAgo} years to find his present age.`,
-      `${ageInPast} + ${yearsAgo} = ${presentAge}.`,
-      `Step 2: In ${yearsIntoFuture} years, he will be ${presentAge} years old plus ${yearsIntoFuture} more years.`,
-      `${presentAge} + ${yearsIntoFuture} = ${futureAge}.`,
-      `Final answer: ${futureAge} years old.`
-    ];
+    
+const steps = [
+  `Step 1: ${yearsAgo} years ago, the man was ${ageInPast} years old. Add ${yearsAgo} years to find his present age.`,
+  `${ageInPast} + ${yearsAgo} = ${presentAge}.`,
+  `Step 2: In ${yearsIntoFuture} years, he will be ${presentAge} years old plus ${yearsIntoFuture} more years.`,
+  `${presentAge} + ${yearsIntoFuture} = ${futureAge}.`,
+  `Final answer: ${futureAge} years old.`
+];
+
 
     return {
       answer: `${futureAge} years old`,
