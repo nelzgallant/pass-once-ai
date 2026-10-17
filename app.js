@@ -3206,6 +3206,38 @@ if (operator === "+") {
   };
 }
 
+function formatTimAIText(text) {
+  return String(text || "")
+    // Make common maths notation easier to read.
+    .replace(/\$\$?([\s\S]*?)\$\$?/g, "$1")
+    .replace(/\\text\{([^{}]*)\}/g, "$1")
+    .replace(
+      /\\xrightarrow(?:\[[^\]]*\])?\{([^{}]*)\}/g,
+      " --$1--> "
+    )
+    .replace(/\\times\b/g, " × ")
+    .replace(/\\div\b/g, " ÷ ")
+    .replace(/\\cdot\b/g, " · ")
+    .replace(/\\,/g, " ")
+    .replace(/\\\\/g, "\n")
+    // Remove Markdown heading and divider symbols.
+    .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+    .replace(/^\s*[-*_]{3,}\s*$/gm, "")
+    // Remove Markdown bold, italic and inline-code markers.
+    .replace(/\*\*(.*?)\*\*/gs, "$1")
+    .replace(/__(.*?)__/gs, "$1")
+    .replace(/\*(.*?)\*/gs, "$1")
+    .replace(/_(.*?)_/gs, "$1")
+    .replace(/`([^`]*)`/g, "$1")
+    // Make Markdown list markers look cleaner.
+    .replace(/^\s*[-*+]\s+/gm, "• ")
+    .replace(/^\s*\d+\.\s+/gm, (match) => match.trim() + " ")
+    // Tidy excessive blank lines and surrounding spaces.
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 
 async function showTimAIAnswer(request) {
   const timMsg = $("timMsg");
@@ -3250,9 +3282,9 @@ async function showTimAIAnswer(request) {
     }
 
     if (solutionSteps) {
-      solutionSteps.textContent = data.answer;
-      solutionSteps.style.whiteSpace = "pre-wrap";
-    }
+  solutionSteps.textContent = formatTimAIText(data.answer);
+  solutionSteps.style.whiteSpace = "pre-wrap";
+}
 
     if (solutionAnswer) {
       solutionAnswer.textContent = "Tim's AI Explanation";
