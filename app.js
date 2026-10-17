@@ -3576,7 +3576,23 @@ const words = requestText
           }
         }
 
+        
+        // Avoid recommending decimal-specific lessons for
+        // ordinary multiplication questions.
+        const requestsDecimals = requestedConcepts.some(
+          (concept) => concept.name === "decimals"
+        );
+
+        if (
+          requestedIntents.includes("multiplication") &&
+          title.includes("decimal") &&
+          !requestsDecimals
+        ) {
+          lessonScore = -100;
+        }
+
         return { lesson, score: lessonScore };
+
       });
 
       scoredLessons.sort((a, b) => b.score - a.score);
