@@ -632,3 +632,49 @@
     font-size: 0.95rem !important;
   }
 }
+
+
+/* Pass Once AI: fix dashboard subject card sizing */
+#dash #subjects {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+#dash #subjects .subject {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  white-space: normal;
+  text-align: left;
+}
+
+#dash #subjects .subject strong,
+#dash #subjects .subject small {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+@media (min-width: 900px) {
+  #dash #subjects {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  #dash #subjects {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #dash #subjects .subject {
+    min-height: 90px;
+    padding: 18px;
+    font-size: 1rem;
+  }
+}
