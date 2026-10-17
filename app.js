@@ -3171,168 +3171,201 @@ const words = requestText
 
 
 
-const matches = topics
-  .map((topic) => {
-    const topicName = normalize(topic.name);
-    const subjectName =
-      subjectById.get(Number(topic.subject_id)) || "";
 
-    const combined = normalize(
-      `${subjectName} ${topic.name}`
+    // Tim: rank topics and lessons together.
+    const intentWords = {
+      addition: [
+        "addition", "add", "adding", "sum", "plus",
+        "summation", "total"
+      ],
+      subtraction: [
+        "subtraction", "subtract", "subtracting",
+        "minus", "difference", "take away"
+      ],
+      multiplication: [
+        "multiplication", "multiply", "multiplying",
+        "product", "times"
+      ],
+      division: [
+        "division", "divide", "dividing",
+        "quotient"
+      ],
+      simplification: [
+        "simplify", "simplifying", "simplification",
+        "reduce", "lowest terms"
+      ],
+      conversion: [
+        "convert", "conversion", "converting"
+      ]
+    };
+
+    const conceptGroups = [
+      {
+        name: "fractions",
+        words: ["fraction", "fractions"]
+      },
+      {
+        name: "decimals",
+        words: ["decimal", "decimals"]
+      },
+      {
+        name: "percentages",
+        words: ["percentage", "percentages", "percent"]
+      }
+    ];
+
+    const hasWord = (text, word) =>
+      (` ${text} `).includes(` ${word} `);
+
+    const requestedConcepts = conceptGroups.filter((group) =>
+      group.words.some((word) => hasWord(requestText, word))
     );
 
-    const topicLessons =
-      lessonsByTopic.get(Number(topic.id)) || [];
+    const requestedIntents = timLearningIntent.intents.slice();
 
-    let score = 0;
-
-    // Strong matches for topic and subject names.
-    if (topicName && requestText.includes(topicName)) {
-      score += 10;
+    // Also recognize conversion as a learning skill.
+    if (
+      /\b(convert|conversion|converting)\b/.test(requestText) &&
+      !requestedIntents.includes("conversion")
+    ) {
+      requestedIntents.push("conversion");
     }
 
-    if (combined && requestText.includes(combined)) {
-      score += 12;
-    }
+    const matches = topics.map((topic) => {
+      const topicName = normalize(topic.name);
+      const subjectName =
+        subjectById.get(Number(topic.subject_id)) || "";
 
-    
-    // Match the requested skill and the mathematical concept together.
-    const requestHasFractions =
-      /\b(fraction|fractions)\b/.test(requestText);
+      const topicLessons =
+        lessonsByTopic.get(Number(topic.id)) || [];
 
-    const requestHasDecimals =
-      /\b(decimal|decimals)\b/.test(requestText);
+      // Score the topic's relevance to the requested concept.
+      let topicScore = 0;
 
-    const requestHasPercentages =
-      /\b(percent|percentage|percentages)\b/.test(requestText);
-
-    const topicHasFractions =
-      /\bfractions?\b/.test(topicName);
-
-    const topicHasOperations =
-      /\boperations?\b/.test(topicName);
-
-    const topicHasDecimals =
-      /\bdecimals?\b/.test(topicName);
-
-    if (requestHasFractions && topicHasFractions) {
-      score += 15;
-    }
-
-    if (requestHasFractions && topicHasOperations) {
-      score += 8;
-    }
-
-    if (requestHasDecimals && topicHasDecimals) {
-      score += 15;
-    }
-
-    if (requestHasPercentages &&
-        /\bpercentages?\b/.test(topicName)) {
-      score += 15;
-    }
-
-    // Reward lessons that match the requested operation.
-    for (const intent of timLearningIntent.intents) {
-      const intentWords = {
-        addition: [
-          "addition", "add", "adding", "sum", "plus",
-          "summation", "total"
-        ],
-        subtraction: [
-          "subtraction", "subtract", "subtracting",
-          "minus", "difference", "take away"
-        ],
-        multiplication: [
-          "multiplication", "multiply", "multiplying",
-          "product", "times"
-        ],
-        division: [
-          "division", "divide", "dividing",
-          "quotient", "sharing equally"
-        ],
-        simplification: [
-          "simplify", "simplifying", "simplification",
-          "reduce", "lowest terms"
-        ]
-      }[intent] || [];
-
-      for (const lesson of topicLessons) {
-        const title = normalize(lesson.title);
-        const content = normalize(lesson.content);
-
-        const titleMatchesIntent = intentWords.some((word) =>
-          (` ${title} `).includes(` ${word} `)
-        );
-
-        const contentMatchesIntent = intentWords.some((word) =>
-          (` ${content} `).includes(` ${word} `)
-        );
-
-        if (titleMatchesIntent) {
-          score += 12;
-        } else if (contentMatchesIntent) {
-          score += 3;
-        }
-      }
-    }
-
-    for (const word of words) {
-      if (topicName.includes(word)) {
-        score += 2;
-      } else if (normalize(subjectName).includes(word)) {
-        score += 1;
-      }
-    }
-
-    // Search lesson titles and content for other relevant words.
-    for (const lesson of topicLessons) {
-      const title = normalize(lesson.title);
-      const content = normalize(lesson.content);
-
-      if (title && requestText.includes(title)) {
-        score += 8;
+      if (topicName && hasWord(requestText, topicName)) {
+        topicScore += 12;
       }
 
       for (const word of words) {
-        if (title.includes(word)) score += 4;
-        if (content.includes(word)) score += 2;
+        if (hasWord(topicName, word)) topicScore += 2;
+        if (hasWord(normalize(subjectName), word)) {
+          topicScore += 1;
+        }
       }
+
+      for (const concept of requestedConcepts) {
+        if (
+          concept.words.some((word) => hasWord(topicName, word))
+        ) {
+          topicScore += 15;
+        }
+      }
+
+      // Score each lesson by title, concept, and lesson content.
+      const scoredLessons = topicLessons.map((lesson) => {
+        const title = normalize(lesson.title);
+        const content = normalize(lesson.content);
+        let lessonScore = 0;
+
+        const matchedConcepts = requestedConcepts.filter(
+          (concept) =>
+            concept.words.some((word) =>
+              hasWord(title, word)
+            )
+        );
+
+        const contentConcepts = requestedConcepts.filter(
+          (concept) =>
+            concept.words.some((word) =>
+              hasWord(content, word)
+            )
+        );
+
+        // A concept in the title is stronger evidence than
+        // a concept appearing only in the lesson content.
+        lessonScore += matchedConcepts.length * 20;
+        lessonScore += contentConcepts.length * 5;
+
+        // Reward the requested operation or learning skill.
+        for (const intent of requestedIntents) {
+          const terms = intentWords[intent] || [];
+
+          const titleMatchesIntent = terms.some((word) =>
+            hasWord(title, word)
+          );
+
+          const contentMatchesIntent = terms.some((word) =>
+            hasWord(content, word)
+          );
+
+          if (titleMatchesIntent) {
+            lessonScore += 25;
+          } else if (contentMatchesIntent) {
+            lessonScore += 6;
+          }
+        }
+
+        // Match other meaningful words from the request.
+        for (const word of words) {
+          if (hasWord(title, word)) lessonScore += 3;
+          if (hasWord(content, word)) lessonScore += 1;
+        }
+
+        // Strongly prefer lessons that match both the concept
+        // and the requested skill.
+        if (
+          requestedConcepts.length > 0 &&
+          matchedConcepts.length > 0 &&
+          requestedIntents.length > 0
+        ) {
+          const terms = requestedIntents.flatMap(
+            (intent) => intentWords[intent] || []
+          );
+
+          if (terms.some((word) => hasWord(title, word))) {
+            lessonScore += 20;
+          }
+        }
+
+        return { lesson, score: lessonScore };
+      });
+
+      scoredLessons.sort((a, b) => b.score - a.score);
+
+      const topLessonScore = scoredLessons[0]?.score || 0;
+
+      return {
+        topic,
+        subjectName,
+        topicScore,
+        scoredLessons,
+        score: topicScore + topLessonScore
+      };
+    });
+
+    // Prefer topics whose lessons best match the whole request.
+    matches.sort((a, b) => b.score - a.score);
+
+    if (!matches.length || matches[0].score <= 0) {
+      if (timMsg) {
+        timMsg.textContent =
+          "I couldn't find a matching topic or lesson in your class yet.";
+      }
+      return;
     }
 
-    return {
-      topic,
-      subjectName,
-      score
-    };
-  })
-  .filter((item) => item.score > 0)
-  .sort((a, b) => b.score - a.score);
-
-
-if (!matches.length) {
-  if (timMsg) {
-    timMsg.textContent =
-      "I couldn't find that exact topic in your class yet.";
-  }
-  return;
-}
-
-    // Open the best matching topic's existing lesson screen.
-
-    // Find the best matching topic and load its actual lessons.
     const best = matches[0];
 
-    const { data: lessons, error: lessonsError } = await sb
-      .from("lessons")
-      .select("id,topic_id,title,content,lesson_order")
-      .eq("topic_id", best.topic.id)
-      .order("lesson_order", { ascending: true })
-      .order("id", { ascending: true });
+    // Use the already-ranked lessons from the selected topic.
+    const lessons = (lessonsByTopic.get(Number(best.topic.id)) || [])
+      .slice()
+      .sort(
+        (a, b) =>
+          Number(a.lesson_order || 0) - Number(b.lesson_order || 0) ||
+          Number(a.id) - Number(b.id)
+      );
 
-    if (lessonsError) throw lessonsError;
-
-    if (!lessons?.length) {
+    if (!lessons.length) {
       if (timMsg) {
         timMsg.textContent =
           `I found ${best.topic.name}, but its lesson content isn't available yet.`;
@@ -3340,77 +3373,10 @@ if (!matches.length) {
       return;
     }
 
-
-    // Select the lesson that best matches the student's request.
-    const lessonScores = lessons.map((lesson) => {
-      const title = normalize(lesson.title);
-      const content = normalize(lesson.content);
-
-      let score = 0;
-
-      // Exact lesson-title match.
-      if (title && requestText.includes(title)) {
-        score += 20;
-      }
-
-      // Match the requested learning skill.
-      const intentWords = {
-        addition: [
-          "addition", "add", "adding", "sum", "plus",
-          "summation", "total"
-        ],
-        subtraction: [
-          "subtraction", "subtract", "subtracting",
-          "minus", "difference", "take away"
-        ],
-        multiplication: [
-          "multiplication", "multiply", "multiplying",
-          "product", "times"
-        ],
-        division: [
-          "division", "divide", "dividing",
-          "quotient", "sharing equally"
-        ],
-        simplification: [
-          "simplify", "simplifying", "simplification",
-          "reduce", "lowest terms"
-        ]
-      };
-
-      for (const intent of timLearningIntent.intents) {
-        const terms = intentWords[intent] || [];
-
-        const titleMatchesIntent = terms.some((term) =>
-          (` ${title} `).includes(` ${term} `)
-        );
-
-        const contentMatchesIntent = terms.some((term) =>
-          (` ${content} `).includes(` ${term} `)
-        );
-
-        if (titleMatchesIntent) {
-          score += 30;
-        } else if (contentMatchesIntent) {
-          score += 5;
-        }
-      }
-
-      // Other meaningful words from the student's request.
-      for (const word of words) {
-        if (title.includes(word)) score += 2;
-        if (content.includes(word)) score += 1;
-      }
-
-      return { lesson, score };
-    });
-
-    lessonScores.sort((a, b) => b.score - a.score);
-
-    // Prefer the first lesson only when no lesson has a positive match.
     const selectedLesson =
-      lessonScores.length > 0 && lessonScores[0].score > 0
-        ? lessonScores[0].lesson
-        : lessons[0];
+      best.scoredLessons.find((item) => item.score > 0)?.lesson ||
+      lessons[0];
+
 
     // Prepare the current subject for the lesson's Back button.
     currentSubject = {
