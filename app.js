@@ -3778,7 +3778,7 @@ const words = requestText
     matches.sort((a, b) => b.score - a.score);
 
 
-    if (!matches.length || matches[0].score <= 0) {
+    if (!matches.length || matches[0].score < 6) {
   if (mathSolution && solutionCard) {
     solutionCard.classList.remove("hidden");
 
