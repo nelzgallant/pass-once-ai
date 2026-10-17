@@ -678,3 +678,28 @@
     font-size: 1rem;
   }
 }
+
+
+/* Desktop layout refinement — Pass Once AI */
+@media (min-width: 651px) {
+
+  /* Move only the Learning Progress panel to the right */
+  #progressPanel {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  #progressPanel > .card {
+    width: 100%;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: 0;
+    box-sizing: border-box;
+  }
+
+  /* Bring the dashboard subjects section slightly upwards */
+  #subjects {
+    margin-top: -8px;
+  }
+
+}
