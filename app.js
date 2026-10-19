@@ -3291,9 +3291,8 @@ async function showTimAIAnswer(request) {
     }
 
     if (solutionCard) {
-      solutionCard.classList.remove("hidden");
-      return;
-    }
+  solutionCard.classList.remove("hidden");
+}
 
     
 const learnMore = $("timLearnMore");
