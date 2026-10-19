@@ -3262,24 +3262,44 @@ if (solutionMsg) {
         ? currentSubject?.name || ""
         : "";
 
-    const { data, error } = await sb.functions.invoke(
-      "tim-tutor",
-      {
-        body: {
-          question: request,
-          subject: subjectName,
-          classLevel:
-            profile?.level ||
-            profile?.class_level ||
-            profile?.class_name ||
-            "",
-          language:
-            profile?.learning_language ||
-            profile?.language ||
-            "English"
-        }
+    
+    let timeoutId;
+
+    const aiRequest = sb.functions.invoke("tim-tutor", {
+      body: {
+        question: request,
+        subject: subjectName,
+        classLevel:
+          profile?.level ||
+          profile?.class_level ||
+          profile?.class_name ||
+          "",
+        language:
+          profile?.learning_language ||
+          profile?.language ||
+          "English"
       }
-    );
+    });
+
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error("TIM_TIMEOUT"));
+      }, 60000);
+    });
+
+    let result;
+
+    try {
+      result = await Promise.race([
+        aiRequest,
+        timeoutPromise
+      ]);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    const { data, error } = result;
+
 
     if (error) throw error;
     if (!data?.answer) {
@@ -3325,17 +3345,38 @@ if (learnMore) {
     }
 
     return true;
-  } catch (error) {
-    console.error("Tim AI fallback error:", error);
+  
+} catch (error) {
+  console.error("Tim AI fallback error:", error);
 
+  if (error?.message === "TIM_TIMEOUT") {
     if (timMsg) {
       timMsg.textContent =
-        "I couldn't find a suitable lesson, and Tim's AI tutor is unavailable right now. Please try again shortly.";
+        "⏳ Tim couldn't prepare your answer within 60 seconds. " +
+        "Please visit your Dashboard to continue learning from available lessons and CBT practice, or try again later.";
     }
 
-    return false;
+    if (solutionMsg) {
+      solutionMsg.textContent =
+        "Tim's response took too long. Please try again later.";
+    }
+  } else {
+    if (timMsg) {
+      timMsg.textContent =
+        "Tim is busy right now and couldn't prepare your answer. " +
+        "Please visit your Dashboard to continue learning, or try again later.";
+    }
+
+    if (solutionMsg) {
+      solutionMsg.textContent =
+        "Tim couldn't prepare an answer right now. Please try again later.";
+    }
   }
+
+  return false;
 }
+}
+
 
 async function resumeTimRequest() {
   const request = (
