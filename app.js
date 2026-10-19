@@ -3405,12 +3405,14 @@ if (dashboardStatus) {
   dashboardStatus.classList.remove("hidden");
 }
 
+
 if (dashboardMessage) {
   dashboardMessage.textContent =
     error?.message === "TIM_TIMEOUT"
-      ? "Tim couldn't prepare your answer within 60 seconds. You can try again or continue learning from your Dashboard."
-      : "Tim is unavailable right now. You can try again or continue learning from your Dashboard.";
+      ? "Tim is busy right now. We couldn't prepare your answer within 60 seconds. You can try again or continue learning from your Dashboard."
+      : "Tim is busy right now and couldn't prepare your answer. You can try again or continue learning from your Dashboard.";
 }
+
 
 if (countdownDisplay) {
   countdownDisplay.classList.remove("hidden");
@@ -3475,10 +3477,8 @@ if (backToDashboard) {
   };
 }
     if (timMsg) {
-      timMsg.textContent =
-        "Tim is busy right now and couldn't prepare your answer. " +
-        "Please visit your Dashboard to continue learning, or try again later.";
-    }
+  timMsg.textContent = "";
+}
 
     if (solutionMsg) {
       solutionMsg.textContent =
