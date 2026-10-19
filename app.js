@@ -3256,6 +3256,44 @@ if (solutionMsg) {
   solutionMsg.textContent = "Tim is working on your question...";
 }
 
+const dashboardStatus = $("timDashboardStatus");
+const dashboardMessage = $("timDashboardMessage");
+const countdownDisplay = $("timCountdown");
+const dashboardRetry = $("timDashboardRetry");
+
+let countdownInterval = null;
+let secondsRemaining = 60;
+
+if (dashboardStatus) {
+  dashboardStatus.classList.remove("hidden");
+}
+
+if (dashboardMessage) {
+  dashboardMessage.textContent =
+    "Tim is preparing your answer. Please wait.";
+}
+
+if (countdownDisplay) {
+  countdownDisplay.classList.remove("hidden");
+  countdownDisplay.textContent = "Time remaining: 60 seconds";
+}
+
+if (dashboardRetry) {
+  dashboardRetry.classList.add("hidden");
+  dashboardRetry.onclick = null;
+}
+
+show("dash");
+
+countdownInterval = setInterval(() => {
+  secondsRemaining = Math.max(0, secondsRemaining - 1);
+
+  if (countdownDisplay) {
+    countdownDisplay.textContent =
+      `Time remaining: ${secondsRemaining} seconds`;
+  }
+}, 1000);
+
   try {
     const subjectName =
       typeof currentSubject !== "undefined"
@@ -3295,8 +3333,9 @@ if (solutionMsg) {
         timeoutPromise
       ]);
     } finally {
-      clearTimeout(timeoutId);
-    }
+  clearTimeout(timeoutId);
+  clearInterval(countdownInterval);
+}
 
     const { data, error } = result;
 
@@ -3343,11 +3382,54 @@ if (learnMore) {
       timMsg.textContent =
         "Tim has answered using his AI tutor because a matching lesson wasn't available.";
     }
+if (dashboardMessage) {
+  dashboardMessage.textContent = formatTimAIText(data.answer);
+  dashboardMessage.style.whiteSpace = "pre-wrap";
+}
 
+if (countdownDisplay) {
+  countdownDisplay.classList.add("hidden");
+}
+
+if (dashboardRetry) {
+  dashboardRetry.classList.add("hidden");
+}
     return true;
   
 } catch (error) {
   console.error("Tim AI fallback error:", error);
+    
+show("dash");
+
+if (dashboardStatus) {
+  dashboardStatus.classList.remove("hidden");
+}
+
+if (dashboardMessage) {
+  dashboardMessage.textContent =
+    error?.message === "TIM_TIMEOUT"
+      ? "Tim couldn't prepare your answer within 60 seconds. You can try again or continue learning from your Dashboard."
+      : "Tim is unavailable right now. You can try again or continue learning from your Dashboard.";
+}
+
+if (countdownDisplay) {
+  countdownDisplay.classList.remove("hidden");
+  countdownDisplay.textContent =
+    error?.message === "TIM_TIMEOUT"
+      ? "Time limit reached."
+      : "Timer stopped.";
+}
+
+if (dashboardRetry) {
+  dashboardRetry.classList.remove("hidden");
+
+  dashboardRetry.onclick = () => {
+    sessionStorage.setItem("passOnceTimRequest", request);
+    dashboardStatus?.classList.add("hidden");
+    resumeTimRequest();
+  };
+}
+
     if (solutionCard) {
   solutionCard.classList.remove("hidden");
 }
