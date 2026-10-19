@@ -3813,20 +3813,38 @@ const words = requestText
       ]
     };
 
-    const conceptGroups = [
-      {
-        name: "fractions",
-        words: ["fraction", "fractions"]
-      },
-      {
-        name: "decimals",
-        words: ["decimal", "decimals"]
-      },
-      {
-        name: "percentages",
-        words: ["percentage", "percentages", "percent"]
-      }
-    ];
+  
+const conceptGroups = [
+  {
+    name: "fractions",
+    words: ["fraction", "fractions"]
+  },
+  {
+    name: "decimals",
+    words: ["decimal", "decimals"]
+  },
+  {
+    name: "percentages",
+    words: ["percentage", "percentages", "percent"]
+  },
+  {
+    name: "comprehension",
+    words: ["comprehension", "comprehend", "passage", "reading"]
+  },
+  {
+    name: "family",
+    words: ["family", "families", "relatives", "cousin", "cousins"]
+  },
+  {
+    name: "vocabulary",
+    words: ["vocabulary", "meaning", "definitions"]
+  },
+  {
+    name: "grammar",
+    words: ["grammar", "noun", "nouns", "pronoun", "pronouns"]
+  }
+];
+
 
     const hasWord = (text, word) =>
       (` ${text} `).includes(` ${word} `);
