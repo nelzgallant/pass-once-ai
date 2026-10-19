@@ -3371,7 +3371,8 @@ if (mathSolution && solutionCard) {
       "Final answer: " + mathSolution.answer;
   }
 
-  solutionCard.classList.remove("hidden");
+    solutionCard.classList.remove("hidden");
+  return;
 }
 
 if (timMsg) {
