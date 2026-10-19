@@ -3370,6 +3370,15 @@ if (backToDashboard) {
         "Tim's response took too long. Please try again later.";
     }
   } else {
+    const backToDashboard = $("timBackToDashboard");
+
+if (backToDashboard) {
+  backToDashboard.classList.remove("hidden");
+
+  backToDashboard.onclick = () => {
+    show("dash");
+  };
+}
     if (timMsg) {
       timMsg.textContent =
         "Tim is busy right now and couldn't prepare your answer. " +
