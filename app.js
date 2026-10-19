@@ -2960,8 +2960,8 @@ function solveTimMathQuestion(question) {
   const ageQuestion = String(question || "").toLowerCase();
 
   const pastAgeMatch = ageQuestion.match(
-    /\b(?:was|were)\s+(\d+)\s+years?\s+old\s+(\d+)\s+years?\s+ago\b/
-  );
+  /\b(?:was|were)\s+(\d+)\s+years?(?:\s+old)?\s+(\d+)\s+years?\s+ago\b/
+);
 
   const futureYearsMatch = ageQuestion.match(
     /\b(?:in|after)\s+(\d+)\s+years?(?:\s+time)?\b/
