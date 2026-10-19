@@ -743,3 +743,66 @@
   }
 }
 
+
+/* Tim AI lesson readability on phones and computers */
+#timSolutionCard {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 900px;
+  min-width: 0;
+  margin: 1rem auto;
+}
+
+#timSolutionSteps {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.75;
+  font-size: clamp(1rem, 1.5vw, 1.125rem);
+}
+
+.tim-content-heading {
+  display: block;
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1.08em;
+  font-weight: 750;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.tim-content-line {
+  margin: 0 0 0.55rem;
+}
+
+.tim-content-gap {
+  height: 0.45rem;
+}
+
+.tim-content-bullet {
+  margin: 0.35rem 0 0.55rem 0.75rem;
+  padding-left: 0.25rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  #timSolutionCard {
+    margin: 0.75rem auto;
+  }
+
+  #timSolutionSteps {
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+
+  .tim-content-heading {
+    margin-top: 1rem;
+  }
+}
+
