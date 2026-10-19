@@ -3292,6 +3292,7 @@ async function showTimAIAnswer(request) {
 
     if (solutionCard) {
       solutionCard.classList.remove("hidden");
+      return;
     }
 
     
