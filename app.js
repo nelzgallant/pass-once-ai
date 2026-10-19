@@ -3246,6 +3246,15 @@ async function showTimAIAnswer(request) {
   const solutionSteps = $("timSolutionSteps");
   const solutionAnswer = $("timSolutionAnswer");
   const solutionMsg = $("timSolutionMsg");
+  if (timMsg) {
+  timMsg.textContent =
+    "⏳ Hold on! Tim is preparing your answer. " +
+    "It will appear here shortly. Please keep this page open.";
+}
+
+if (solutionMsg) {
+  solutionMsg.textContent = "Tim is working on your question...";
+}
 
   try {
     const subjectName =
