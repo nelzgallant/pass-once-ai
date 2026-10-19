@@ -3234,9 +3234,9 @@ if (operator === "+") {
   };
 }
 
+
 function formatTimAIText(text) {
   return String(text || "")
-
     // Make common maths notation easier to read.
     .replace(/\$\$?([\s\S]*?)\$\$?/g, "$1")
     .replace(/\\text\{([^{}]*)\}/g, "$1")
@@ -3249,19 +3249,65 @@ function formatTimAIText(text) {
     .replace(/\\cdot\b/g, " · ")
     .replace(/\\,/g, " ")
     .replace(/\\\\/g, "\n")
+
+    // Put the main lesson headings on separate lines.
+    .replace(
+      /\s*(JSS\d+\s+ENGLISH STUDIES)\s*/gi,
+      "\n\n$1\n"
+    )
+    .replace(
+      /\s*(WEEK\s+\d+\s*:[^\n]*?)\s*(?=TOPIC:)/gi,
+      "\n\n$1\n"
+    )
+    .replace(
+      /\s*(TOPIC:\s*[^\n]*?)\s*(?=LEARNING OBJECTIVES)/gi,
+      "\n$1\n"
+    )
+    .replace(
+      /\s*(LEARNING OBJECTIVES|PRACTICE QUESTIONS)\s*/gi,
+      "\n\n$1\n"
+    )
+
+    // Separate numbered lesson sections.
+    .replace(
+      /\s*(\d+\.\s*(?:MEANING OF A NOUN|TYPES OF NOUNS|NOUNS IN EVERYDAY NIGERIAN LIFE|HOW TO IDENTIFY A NOUN|CLASSROOM ACTIVITIES|REVISION)\b)/gi,
+      "\n\n$1\n"
+    )
+
+    // Separate noun-type subheadings.
+    .replace(
+      /\s*([A-E]\.\s*(?:Common nouns|Proper nouns|Concrete nouns|Abstract nouns|Collective nouns)\b)/gi,
+      "\n\n$1\n"
+    )
+
+    // Separate learning objectives when they run together.
+    .replace(
+      /\s*(\d+\.\s*(?:Define a noun|Identify nouns|Distinguish common nouns|Recognise concrete|Use nouns correctly)\b)/gi,
+      "\n$1"
+    )
+
+    // Separate example labels.
+    .replace(
+      /\s*-\s*(Person|Animal|Place|Thing|Idea or quality):/gi,
+      "\n$1:"
+    )
+
     // Remove Markdown heading and divider symbols.
     .replace(/^\s{0,3}#{1,6}\s*/gm, "")
     .replace(/^\s*[-*_]{3,}\s*$/gm, "")
+
     // Remove Markdown bold, italic and inline-code markers.
     .replace(/\*\*(.*?)\*\*/gs, "$1")
     .replace(/__(.*?)__/gs, "$1")
     .replace(/\*(.*?)\*/gs, "$1")
     .replace(/_(.*?)_/gs, "$1")
     .replace(/`([^`]*)`/g, "$1")
+
     // Make Markdown list markers look cleaner.
     .replace(/^\s*[-*+]\s+/gm, "• ")
     .replace(/^\s*\d+\.\s+/gm, (match) => match.trim() + " ")
-    // Tidy excessive blank lines and surrounding spaces.
+
+    // Tidy spacing while preserving paragraph breaks.
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
