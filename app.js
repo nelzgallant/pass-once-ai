@@ -3431,7 +3431,7 @@ countdownInterval = setInterval(() => {
     }
 
     if (solutionSteps) {
-  solutionSteps.innerHTML = formatTimAIHtml(data.answer);
+  solutionSteps.textContent = formatTimAIText(data.answer);
   solutionSteps.style.whiteSpace = "pre-wrap";
 }
 
