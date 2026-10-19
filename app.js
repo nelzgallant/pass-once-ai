@@ -3348,6 +3348,19 @@ if (learnMore) {
   
 } catch (error) {
   console.error("Tim AI fallback error:", error);
+    if (solutionCard) {
+  solutionCard.classList.remove("hidden");
+}
+
+const backToDashboard = $("timBackToDashboard");
+
+if (backToDashboard) {
+  backToDashboard.classList.remove("hidden");
+
+  backToDashboard.onclick = () => {
+    show("dash");
+  };
+}
 
   if (error?.message === "TIM_TIMEOUT") {
     const backToDashboard = $("timBackToDashboard");
