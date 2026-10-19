@@ -2370,6 +2370,34 @@ $("goDashboard").onclick = () => renderDash(false);
 $("back").onclick = () => renderDash(true);
 $("logout").onclick = async () => {
   await sb.auth.signOut();
+  
+  // Clear Tim's previous question and messages on logout.
+  const timQuestionBox = document.querySelector(
+    ".tim-question-box textarea"
+  );
+
+  if (timQuestionBox) {
+    timQuestionBox.value = "";
+  }
+
+  if ($("timMsg")) {
+    $("timMsg").textContent = "";
+  }
+
+  if ($("timSolutionMsg")) {
+    $("timSolutionMsg").textContent = "";
+  }
+
+  if ($("timSolutionCard")) {
+    $("timSolutionCard").classList.add("hidden");
+  }
+
+  if ($("timDashboardStatus")) {
+    $("timDashboardStatus").classList.add("hidden");
+  }
+
+  sessionStorage.removeItem("passOnceTimRequest");
+
   user = null;
   profile = null;
   classRow = null;
