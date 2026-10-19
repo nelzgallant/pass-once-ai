@@ -3236,58 +3236,6 @@ if (operator === "+") {
 
 function formatTimAIText(text) {
   return String(text || "")
-    
-function escapeTimHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function formatTimAIHtml(rawText) {
-  let text = String(rawText ?? "").replace(/\r\n?/g, "\n");
-
-  // Put section headings on their own lines.
-  text = text.replace(
-    /\s+(?=(?:JSS\d+\s+ENGLISH STUDIES|WEEK\s+\d+\s*:|TOPIC:|LEARNING OBJECTIVES|PRACTICE QUESTIONS|\d+\.\s+(?:MEANING OF A NOUN|TYPES OF NOUNS|NOUNS IN EVERYDAY NIGERIAN LIFE|HOW TO IDENTIFY A NOUN|CLASSROOM ACTIVITIES|REVISION)|[A-E]\.\s+(?:Common nouns|Proper nouns|Concrete nouns|Abstract nouns|Collective nouns)))/gi,
-    "\n\n"
-  );
-
-  // Separate the example labels if they appear on the same line.
-  text = text.replace(
-    /\s+-\s+(?=(?:Person|Animal|Place|Thing|Idea or quality):)/gi,
-    "\n"
-  );
-
-  return text
-    .split("\n")
-    .map((rawLine) => {
-      const line = rawLine.trim();
-
-      if (!line) {
-        return '<div class="tim-content-gap"></div>';
-      }
-
-      const safeLine = escapeTimHtml(line);
-
-      const isHeading =
-        /^(?:JSS\d+\s+ENGLISH STUDIES|WEEK\s+\d+.*|TOPIC:.*|LEARNING OBJECTIVES|PRACTICE QUESTIONS|\d+\.\s+(?:MEANING OF A NOUN|TYPES OF NOUNS|NOUNS IN EVERYDAY NIGERIAN LIFE|HOW TO IDENTIFY A NOUN|CLASSROOM ACTIVITIES|REVISION)|[A-E]\.\s+(?:Common nouns|Proper nouns|Concrete nouns|Abstract nouns|Collective nouns))$/i
-          .test(line);
-
-      if (isHeading) {
-        return `<div class="tim-content-heading">${safeLine}</div>`;
-      }
-
-      if (/^[-•]\s*/.test(line)) {
-        return `<div class="tim-content-bullet">• ${safeLine.replace(/^[-•]\s*/, "")}</div>`;
-      }
-
-      return `<div class="tim-content-line">${safeLine}</div>`;
-    })
-    .join("");
-}
 
     // Make common maths notation easier to read.
     .replace(/\$\$?([\s\S]*?)\$\$?/g, "$1")
