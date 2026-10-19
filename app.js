@@ -3350,6 +3350,15 @@ if (learnMore) {
   console.error("Tim AI fallback error:", error);
 
   if (error?.message === "TIM_TIMEOUT") {
+    const backToDashboard = $("timBackToDashboard");
+
+if (backToDashboard) {
+  backToDashboard.classList.remove("hidden");
+
+  backToDashboard.onclick = () => {
+    show("dash");
+  };
+}
     if (timMsg) {
       timMsg.textContent =
         "⏳ Tim couldn't prepare your answer within 60 seconds. " +
