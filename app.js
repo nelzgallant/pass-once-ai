@@ -3374,7 +3374,9 @@ if (mathSolution && solutionCard) {
 }
 
 if (timMsg) {
-  timMsg.textContent = "Let's find the right lesson for you…";
+  timMsg.textContent =
+    "⏳ Hold on! Tim is preparing your answer. " +
+    "Your answer will appear here shortly. Please keep this page open.";
 }
 
 
