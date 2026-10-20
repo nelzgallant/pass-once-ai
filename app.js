@@ -2749,9 +2749,105 @@ function displayLesson(
   $("lessonSubject").textContent =
     subjectName + " — " + topicName;
 
+  
+  
+  const rawLessonContent = String(
+    lesson.content || "No lesson content available yet."
+  );
+
+  // Escape text safely before displaying it.
+  const escapeLessonText = (text) =>
+    text.replace(/[&<>"']/g, (character) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[character]);
+
+  // Format each original line separately.
+  const formattedLessonContent = rawLessonContent
+    .split(/\r?\n/)
+    .map((originalLine) => {
+      const line = originalLine.trim();
+
+      if (!line) {
+        return "";
+      }
+
+      const safeLine = escapeLessonText(line);
+
+      // Main section headings, including numbered headings.
+      const isHeading =
+        /^(?:\d+\.\s*)?[A-Z][A-Z0-9\s:–—-]{2,}$/.test(line) ||
+        /^TOPIC:/i.test(line);
+
+      if (isHeading) {
+        return `
+          <h3 style="
+            margin:24px 0 10px;
+            font-size:1.12rem;
+            font-weight:750;
+            line-height:1.5;
+            color:#172b4d;
+            overflow-wrap:anywhere;
+          ">${safeLine}</h3>
+        `;
+      }
+
+      // Smaller labels such as "Examples:".
+      if (/^(Examples|Examples in sentences):?$/i.test(line)) {
+        return `
+          <h4 style="
+            margin:16px 0 8px;
+            font-size:1rem;
+            font-weight:700;
+            line-height:1.5;
+          ">${safeLine}</h4>
+        `;
+      }
+
+      // Display dash bullets as separate list items.
+      if (/^-\s+/.test(line)) {
+        return `
+          <div style="
+            margin:0 0 8px 12px;
+            line-height:1.85;
+            overflow-wrap:anywhere;
+          ">${safeLine}</div>
+        `;
+      }
+
+      // Keep numbered objectives on separate lines.
+      if (/^\d+\.\s+/.test(line)) {
+        return `
+          <p style="
+            margin:0 0 8px;
+            line-height:1.85;
+            overflow-wrap:anywhere;
+          ">${safeLine}</p>
+        `;
+      }
+
+      // Ordinary paragraphs.
+      return `
+        <p style="
+          margin:0 0 16px;
+          line-height:1.85;
+          overflow-wrap:anywhere;
+        ">${safeLine}</p>
+      `;
+    })
+    .join("");
+
   $("lessonContent").innerHTML = `
-    <div style="line-height:1.8;">
-      ${lesson.content || "<p>No lesson content available yet.</p>"}
+    <div style="
+      text-align:left;
+      line-height:1.85;
+      overflow-wrap:anywhere;
+      max-width:100%;
+    ">
+      ${formattedLessonContent}
     </div>
 
     ${
@@ -2774,6 +2870,7 @@ function displayLesson(
         : ""
     }
   `;
+
   // Always start a newly opened lesson from the top
   requestAnimationFrame(() => {
     window.scrollTo({
