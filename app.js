@@ -3958,7 +3958,33 @@ const words = requestText
     };
 
   
+
 const conceptGroups = [
+  {
+    name: "parts_of_speech",
+    words: [
+      "parts of speech",
+      "part of speech",
+      "word classes",
+      "word class"
+    ]
+  },
+  {
+    name: "types_of_nouns",
+    words: [
+      "types of nouns",
+      "type of noun",
+      "kinds of nouns",
+      "kind of noun",
+      "common nouns",
+      "proper nouns",
+      "collective nouns",
+      "abstract nouns",
+      "concrete nouns",
+      "countable nouns",
+      "uncountable nouns"
+    ]
+  },
   {
     name: "fractions",
     words: ["fraction", "fractions"]
