@@ -783,3 +783,40 @@
   }
 }
 
+
+/* Readable lesson layout for mobile and desktop */
+.lesson-readable {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.lesson-readable p {
+  margin: 0 0 14px;
+  line-height: 1.8;
+}
+
+.lesson-readable h3 {
+  margin: 22px 0 10px;
+  font-size: 1.1rem;
+  font-weight: 750;
+  line-height: 1.45;
+  color: #172b4d;
+}
+
+.lesson-readable h3:first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 600px) {
+  .lesson-readable {
+    font-size: 16px;
+  }
+
+  .lesson-readable h3 {
+    font-size: 1.05rem;
+  }
+}
