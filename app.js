@@ -2753,55 +2753,80 @@ function displayLesson(
 
   
 
+$("lessonContent").innerHTML = `
+    <div style="line-height:1.8;">
+      ${lesson.content || "<p>No lesson content available yet.</p>"}
+    </div>
 
- 
-const lessonBody = document.createElement("div");
-lessonBody.className = "lesson-readable";
+    ${
+      lessons.length > 1
+        ? `
+          <div style="
+            margin-top:24px;
+            padding-top:18px;
+            border-top:1px solid #e8eef7;
+          ">
+            <button
+              class="ghost"
+              type="button"
+              id="backToLessonList"
+            >
+              ← Back to Lessons
+            </button>
+          </div>
+        `
+        : ""
+    }
+`;
 
-const rawLessonContent =
-  lesson.content || "No lesson content available yet.";
+```
 
-rawLessonContent.split(/\n+/).forEach((line) => {
-  const text = line.trim();
+**Keep the remaining code below it**, including the existing Back to Lessons button and closing template-literal syntax.
 
-  if (!text) return;
+## Step 3 — Add the styling
 
-  const isHeading =
-    /^(learning objectives|introduction|lesson content|examples|summary|conclusion|vocabulary|comprehension questions|evaluation|activities|definition|types of|importance of|characteristics of|main idea|new words)\b/i.test(text) ||
-    /^week\s+\d+/i.test(text);
+At the bottom of `styles.css`, add:
 
-  const element = document.createElement(isHeading ? "h3" : "p");
-  element.textContent = text;
-  lessonBody.appendChild(element);
-});
-
-$("lessonContent").replaceChildren(lessonBody);
-
-if (lessons.length > 1) {
-  const backWrapper = document.createElement("div");
-  backWrapper.style.marginTop = "24px";
-  backWrapper.style.paddingTop = "18px";
-  backWrapper.style.borderTop = "1px solid #e8eef7";
-
-  const backButton = document.createElement("button");
-  backButton.className = "ghost";
-  backButton.type = "button";
-  backButton.id = "backToLessonList";
-  backButton.textContent = "← Back to Lessons";
-
-  backWrapper.appendChild(backButton);
-  $("lessonContent").appendChild(backWrapper);
+<CodeBlock language="css" editable>
+/* Readable lesson layout for mobile and desktop */
+.lesson-readable {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
-// Always start a newly opened lesson from the top
-requestAnimationFrame(() => {
-  window.scrollTo({
-    top: 0,
-    behavior: "auto"
-  });
-});
+.lesson-readable .lesson-section-heading {
+  display: block;
+  margin: 1.5rem 0 0.65rem;
+  font-size: 1.1rem;
+  font-weight: 750;
+  line-height: 1.45;
+  color: #172b4d;
+}
 
+.lesson-readable .lesson-section-heading:first-child {
+  margin-top: 0;
+}
 
+.lesson-readable .lesson-paragraph {
+  margin: 0 0 0.75rem;
+  line-height: 1.8;
+}
+
+@media (max-width: 600px) {
+  .lesson-readable {
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  .lesson-readable .lesson-section-heading {
+    font-size: 1.05rem;
+    margin-top: 1.2rem;
+  }
 }
 
 
