@@ -2737,78 +2737,6 @@ document
       "Please try again.";
   }
 }
-
-function formatLessonContent(rawContent) {
-  let text = String(rawContent || "")
-    .replace(/\r\n?/g, "\n");
-
-  // Put lesson headings on their own lines.
-  const headings = [
-    /JSS\d+\s+ENGLISH STUDIES/gi,
-    /WEEK\s+\d+\s*:\s*GRAMMAR\s*[—-]\s*NOUNS/gi,
-    /TOPIC:/gi,
-    /LEARNING OBJECTIVES/gi,
-    /PRACTICE QUESTIONS/gi,
-    /\d+\.\s*MEANING OF A NOUN/gi,
-    /\d+\.\s*TYPES OF NOUNS/gi,
-    /\d+\.\s*NOUNS IN EVERYDAY NIGERIAN LIFE/gi,
-    /\d+\.\s*HOW TO IDENTIFY A NOUN/gi,
-    /\d+\.\s*CLASSROOM ACTIVITIES/gi,
-    /\d+\.\s*REVISION/gi,
-    /[A-E]\.\s*(?:Common|Proper|Concrete|Abstract|Collective) nouns/gi,
-    /Activity [A-D]:/gi,
-    /Examples in sentences:/gi,
-    /PRACTICE QUESTIONS/gi
-  ];
-
-  for (const heading of headings) {
-    text = text.replace(heading, "\n\n$&\n");
-  }
-
-  // Put each learning objective on a separate line.
-  text = text.replace(
-    /\s+(\d+\.\s*(?:Define a noun|Identify nouns|Distinguish common nouns|Recognise concrete|Use nouns correctly))/gi,
-    "\n$1"
-  );
-
-  // Separate labelled examples and list items.
-  text = text
-    .replace(/\s+-\s+/g, "\n- ")
-    .replace(/\s+(Person|Animal|Place|Thing|Idea or quality):/gi, "\n$1:")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-  function escapeHtml(value) {
-    return value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
-  return text
-    .split("\n")
-    .map(line => line.trim())
-    .filter(Boolean)
-    .map(line => {
-      const safe = escapeHtml(line);
-
-      if (
-        /^(JSS\d+\s+ENGLISH STUDIES|WEEK\s+\d+\s*:|TOPIC:|LEARNING OBJECTIVES|PRACTICE QUESTIONS|\d+\.\s*(?:MEANING OF A NOUN|TYPES OF NOUNS|NOUNS IN EVERYDAY NIGERIAN LIFE|HOW TO IDENTIFY A NOUN|CLASSROOM ACTIVITIES|REVISION)|[A-E]\.\s*(?:Common|Proper|Concrete|Abstract|Collective) nouns)/i.test(line)
-      ) {
-        return `<h3 class="lesson-section-heading">${safe}</h3>`;
-      }
-
-      if (/^Activity [A-D]:/i.test(line)) {
-        return `<p class="lesson-paragraph"><strong>${safe}</strong></p>`;
-      }
-
-      return `<p class="lesson-paragraph">${safe}</p>`;
-    })
-    .join("\n");
-}
-
 function displayLesson(
   lesson,
   subjectName,
@@ -2821,65 +2749,10 @@ function displayLesson(
   $("lessonSubject").textContent =
     subjectName + " — " + topicName;
 
-  
-$("lessonContent").innerHTML = `
-  <div class="lesson-readable">
-    ${
-      lesson.content
-        ? formatLessonContent(lesson.content)
-        : "<p>No lesson content available yet.</p>"
-    }
-  </div>
-```
-
-**Keep the remaining code below it**, including the existing Back to Lessons button and closing template-literal syntax.
-
-## Step 3 — Add the styling
-
-At the bottom of `styles.css`, add:
-
-<CodeBlock language="css" editable>
-/* Readable lesson layout for mobile and desktop */
-.lesson-readable {
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  line-height: 1.8;
-  overflow-wrap: anywhere;
-  text-align: left;
-}
-
-.lesson-readable .lesson-section-heading {
-  display: block;
-  margin: 1.5rem 0 0.65rem;
-  font-size: 1.1rem;
-  font-weight: 750;
-  line-height: 1.45;
-  color: #172b4d;
-}
-
-.lesson-readable .lesson-section-heading:first-child {
-  margin-top: 0;
-}
-
-.lesson-readable .lesson-paragraph {
-  margin: 0 0 0.75rem;
-  line-height: 1.8;
-}
-
-@media (max-width: 600px) {
-  .lesson-readable {
-    font-size: 16px;
-    line-height: 1.75;
-  }
-
-  .lesson-readable .lesson-section-heading {
-    font-size: 1.05rem;
-    margin-top: 1.2rem;
-  }
-}
-
+  $("lessonContent").innerHTML = `
+    <div style="line-height:1.8;">
+      ${lesson.content || "<p>No lesson content available yet.</p>"}
+    </div>
 
     ${
       lessons.length > 1
