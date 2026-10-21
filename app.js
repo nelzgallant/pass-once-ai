@@ -2751,125 +2751,111 @@ function displayLesson(
 
   
   
+
   const rawLessonContent = String(
     lesson.content || "No lesson content available yet."
   );
 
-  // Escape text safely before displaying it.
-  const escapeLessonText = (text) =>
-    text.replace(/[&<>"']/g, (character) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    })[character]);
+  // Parse the stored HTML so lesson formatting can be rendered.
+  const parsedLesson = new DOMParser().parseFromString(
+    rawLessonContent,
+    "text/html"
+  );
 
-  // Format each original line separately.
-  const formattedLessonContent = rawLessonContent
-    .split(/\r?\n/)
-    .map((originalLine) => {
-      const line = originalLine.trim();
+  // Allow standard educational formatting only.
+  const allowedLessonTags = new Set([
+    "H1", "H2", "H3", "H4", "H5", "H6",
+    "P", "BR", "HR",
+    "UL", "OL", "LI",
+    "STRONG", "B", "EM", "I", "U",
+    "DEL", "S", "SUB", "SUP",
+    "DIV", "SPAN",
+    "BLOCKQUOTE", "PRE", "CODE",
+    "TABLE", "THEAD", "TBODY", "TFOOT",
+    "TR", "TH", "TD",
+    "DL", "DT", "DD"
+  ]);
 
-      if (!line) {
-        return "";
-      }
-
-      const safeLine = escapeLessonText(line);
-
-      // Main section headings, including numbered headings.
-      const isHeading =
-        /^(?:\d+\.\s*)?[A-Z][A-Z0-9\s:–—-]{2,}$/.test(line) ||
-        /^TOPIC:/i.test(line);
-
-      if (isHeading) {
-        return `
-          <h3 style="
-            margin:24px 0 10px;
-            font-size:1.12rem;
-            font-weight:750;
-            line-height:1.5;
-            color:#172b4d;
-            overflow-wrap:anywhere;
-          ">${safeLine}</h3>
-        `;
-      }
-
-      // Smaller labels such as "Examples:".
-      if (/^(Examples|Examples in sentences):?$/i.test(line)) {
-        return `
-          <h4 style="
-            margin:16px 0 8px;
-            font-size:1rem;
-            font-weight:700;
-            line-height:1.5;
-          ">${safeLine}</h4>
-        `;
-      }
-
-      // Display dash bullets as separate list items.
-      if (/^-\s+/.test(line)) {
-        return `
-          <div style="
-            margin:0 0 8px 12px;
-            line-height:1.85;
-            overflow-wrap:anywhere;
-          ">${safeLine}</div>
-        `;
-      }
-
-      // Keep numbered objectives on separate lines.
-      if (/^\d+\.\s+/.test(line)) {
-        return `
-          <p style="
-            margin:0 0 8px;
-            line-height:1.85;
-            overflow-wrap:anywhere;
-          ">${safeLine}</p>
-        `;
-      }
-
-      // Ordinary paragraphs.
-      return `
-        <p style="
-          margin:0 0 16px;
-          line-height:1.85;
-          overflow-wrap:anywhere;
-        ">${safeLine}</p>
-      `;
-    })
-    .join("");
-
-  $("lessonContent").innerHTML = `
-    <div style="
-      text-align:left;
-      line-height:1.85;
-      overflow-wrap:anywhere;
-      max-width:100%;
-    ">
-      ${formattedLessonContent}
-    </div>
-
-    ${
-      lessons.length > 1
-        ? `
-          <div style="
-            margin-top:24px;
-            padding-top:18px;
-            border-top:1px solid #e8eef7;
-          ">
-            <button
-              class="ghost"
-              type="button"
-              id="backToLessonList"
-            >
-              ← Back to Lessons
-            </button>
-          </div>
-        `
-        : ""
+  // Remove dangerous elements and rebuild allowed HTML
+  // without copying event handlers or arbitrary attributes.
+  function cleanLessonNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return document.createTextNode(node.textContent || "");
     }
-  `;
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return null;
+    }
+
+    const tag = node.tagName;
+
+    // Drop these elements and their contents entirely.
+    if (
+      ["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED",
+       "SVG", "MATH", "TEMPLATE"].includes(tag)
+    ) {
+      return null;
+    }
+
+    // Unwrap unsupported formatting tags but keep safe text
+    // and permitted child elements.
+    if (!allowedLessonTags.has(tag)) {
+      const fragment = document.createDocumentFragment();
+
+      for (const child of node.childNodes) {
+        const cleanChild = cleanLessonNode(child);
+        if (cleanChild) fragment.appendChild(cleanChild);
+      }
+
+      return fragment;
+    }
+
+    // Create a fresh element without copying any attributes.
+    const cleanElement = document.createElement(
+      tag.toLowerCase()
+    );
+
+    for (const child of node.childNodes) {
+      const cleanChild = cleanLessonNode(child);
+      if (cleanChild) cleanElement.appendChild(cleanChild);
+    }
+
+    return cleanElement;
+  }
+
+  const lessonContentBox = document.createElement("div");
+
+  lessonContentBox.style.textAlign = "left";
+  lessonContentBox.style.lineHeight = "1.85";
+  lessonContentBox.style.overflowWrap = "anywhere";
+  lessonContentBox.style.maxWidth = "100%";
+
+  for (const node of parsedLesson.body.childNodes) {
+    const cleanNode = cleanLessonNode(node);
+    if (cleanNode) lessonContentBox.appendChild(cleanNode);
+  }
+
+  const lessonContentElement = $("lessonContent");
+  lessonContentElement.replaceChildren(lessonContentBox);
+
+  // Preserve the Back to Lessons button.
+  if (lessons.length > 1) {
+    const backSection = document.createElement("div");
+
+    backSection.style.marginTop = "24px";
+    backSection.style.paddingTop = "18px";
+    backSection.style.borderTop = "1px solid #e8eef7";
+
+    const backButton = document.createElement("button");
+
+    backButton.className = "ghost";
+    backButton.type = "button";
+    backButton.id = "backToLessonList";
+    backButton.textContent = "← Back to Lessons";
+
+    backSection.appendChild(backButton);
+    lessonContentElement.appendChild(backSection);
+  }
 
   // Always start a newly opened lesson from the top
   requestAnimationFrame(() => {
