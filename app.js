@@ -1791,12 +1791,20 @@ async function getPracticeTopics(subjectId, classId) {
   return rows;
 }
 
+
 async function startTopic(
   topicId,
   subjectName,
   topicName,
   lessonId = null
 ) {
+  console.log("Practice debug:", {
+    topicId,
+    lessonId,
+    subjectName,
+    topicName
+  });
+
   currentTopic = {
     id: topicId,
     name: topicName
@@ -1835,10 +1843,14 @@ async function startTopic(
     const questionFields =
       "id,topic_id,question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,language_code,exam_type";
 
+    // TEMPORARY DEVELOPMENT TESTING:
+    // Lesson-specific practice can load unpublished questions.
+    // Normal topic practice still requires published questions.
+    const allowUnpublishedForTesting =
+      Boolean(lessonId);
+
     /*
-      ==========================================
-      LESSON-SPECIFIC PRACTICE WITH FALLBACKS
-      ==========================================
+      LESSON-SPECIFIC PRACTICE
 
       Priority:
       1. lesson_question_links
@@ -1869,6 +1881,7 @@ async function startTopic(
           !seenLinkIds.has(id)
         ) {
           seenLinkIds.add(id);
+
           uniqueLinks.push({
             ...link,
             question_id: id
@@ -1881,15 +1894,21 @@ async function startTopic(
       );
 
       if (questionIds.length) {
-        const {
-          data: linkedQuestions,
-          error: linkedError
-        } = await sb
+        let linkedQuery = sb
           .from("questions")
           .select(questionFields)
           .in("id", questionIds)
-          .eq("language_code", "en")
-          .eq("is_published", true);
+          .eq("language_code", "en");
+
+        if (!allowUnpublishedForTesting) {
+          linkedQuery =
+            linkedQuery.eq("is_published", true);
+        }
+
+        const {
+          data: linkedQuestions,
+          error: linkedError
+        } = await linkedQuery;
 
         if (linkedError) throw linkedError;
 
@@ -1909,18 +1928,23 @@ async function startTopic(
         }));
       }
 
-      // SOURCE 2: Questions assigned directly to the lesson.
+      // SOURCE 2: Questions assigned directly to this lesson.
       if (!questionPool.length) {
-        const {
-          data: lessonQuestions,
-          error: lessonQuestionError
-        } = await sb
+        let lessonQuery = sb
           .from("questions")
           .select(questionFields)
           .eq("lesson_id", lessonId)
-          .eq("language_code", "en")
-          .eq("is_published", true)
-          .order("id");
+          .eq("language_code", "en");
+
+        if (!allowUnpublishedForTesting) {
+          lessonQuery =
+            lessonQuery.eq("is_published", true);
+        }
+
+        const {
+          data: lessonQuestions,
+          error: lessonQuestionError
+        } = await lessonQuery.order("id");
 
         if (lessonQuestionError) {
           throw lessonQuestionError;
@@ -1934,18 +1958,23 @@ async function startTopic(
         }));
       }
 
-      // SOURCE 3: Published questions assigned to the topic.
+      // SOURCE 3: Questions assigned to the topic.
       if (!questionPool.length) {
-        const {
-          data: topicQuestions,
-          error: topicQuestionError
-        } = await sb
+        let topicQuery = sb
           .from("questions")
           .select(questionFields)
           .eq("topic_id", topicId)
-          .eq("language_code", "en")
-          .eq("is_published", true)
-          .order("id");
+          .eq("language_code", "en");
+
+        if (!allowUnpublishedForTesting) {
+          topicQuery =
+            topicQuery.eq("is_published", true);
+        }
+
+        const {
+          data: topicQuestions,
+          error: topicQuestionError
+        } = await topicQuery.order("id");
 
         if (topicQuestionError) {
           throw topicQuestionError;
@@ -1961,10 +1990,8 @@ async function startTopic(
 
     } else {
       /*
-        ==========================================
-        NORMAL TOPIC PRACTICE
-        ==========================================
-        Preserves existing topic-level practice.
+        NORMAL TOPIC PRACTICE:
+        Preserve the published-question requirement.
       */
 
       const {
@@ -1983,15 +2010,20 @@ async function startTopic(
       questionPool = data || [];
     }
 
+    console.log("Practice questions loaded:", {
+      topicId,
+      lessonId,
+      count: questionPool.length,
+      questionIds: questionPool.map(q => q.id)
+    });
+
     /*
-      ==========================================
       HANDLE EMPTY QUESTION POOL
-      ==========================================
     */
 
     if (!questionPool.length) {
       $("question").textContent =
-        "No published practice questions are available for this topic yet.";
+        "No practice questions are available for this topic yet.";
 
       $("options").innerHTML = `
         <button class="ghost" type="button" id="backToTopics">
@@ -2016,19 +2048,13 @@ async function startTopic(
     }
 
     /*
-      ==========================================
       SHUFFLE HELPER
-      ==========================================
     */
 
     const shuffle = arr => {
       const copy = [...arr];
 
-      for (
-        let i = copy.length - 1;
-        i > 0;
-        i--
-      ) {
+      for (let i = copy.length - 1; i > 0; i--) {
         const j = Math.floor(
           Math.random() * (i + 1)
         );
@@ -2041,20 +2067,12 @@ async function startTopic(
     };
 
     /*
-      ==========================================
       SMART RANDOM SELECTION
-      ==========================================
     */
 
     let selected = [];
 
     if (lessonId) {
-      /*
-        Prioritize Core questions, then Revision,
-        then Challenge. Fallback questions are
-        treated as Core.
-      */
-
       const core = questionPool.filter(
         q =>
           String(q.practiceRole || "core")
@@ -2085,7 +2103,6 @@ async function startTopic(
         ...shuffle(challenge).slice(0, 1)
       );
 
-      // Fill any remaining spaces without duplicates.
       const selectedIds = new Set(
         selected.map(q => Number(q.id))
       );
@@ -2107,9 +2124,9 @@ async function startTopic(
 
     } else {
       /*
-        Preserve existing topic-level selection:
+        NORMAL TOPIC PRACTICE:
         5 Easy, 7 Medium, 3 Hard/Challenging,
-        then fill remaining places if necessary.
+        then fill any remaining places.
       */
 
       const easy = questionPool.filter(
@@ -2126,8 +2143,7 @@ async function startTopic(
 
       const hard = questionPool.filter(q => {
         const difficulty =
-          String(q.difficulty || "")
-            .toLowerCase();
+          String(q.difficulty || "").toLowerCase();
 
         return (
           difficulty === "hard" ||
@@ -2158,15 +2174,11 @@ async function startTopic(
         selected.push(remaining.shift());
       }
 
-      selected = shuffle(
-        selected.slice(0, 15)
-      );
+      selected = shuffle(selected.slice(0, 15));
     }
 
     /*
-      ==========================================
       FINAL QUESTION SET
-      ==========================================
     */
 
     currentQuestions = selected;
@@ -2174,6 +2186,11 @@ async function startTopic(
     currentAnswers = new Array(
       currentQuestions.length
     ).fill(null);
+
+    console.log(
+      "Practice questions selected:",
+      currentQuestions.length
+    );
 
     renderQ();
 
@@ -2187,11 +2204,12 @@ async function startTopic(
       "Could not load questions.";
 
     $("explain").textContent =
-      e.message;
+      e.message || String(e);
 
     $("explain").classList.remove("hidden");
   }
 }
+
 
 async function topicIds(subjectId, classId) {
   const { data, error } = await sb
