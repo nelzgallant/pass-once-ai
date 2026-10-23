@@ -2239,6 +2239,23 @@ function ensureSubmitButton() {
   b.onclick = submitQuiz;
   return b;
 }
+
+function renderMathText(value) {
+  const text = String(value ?? "");
+  const safeText = escapeHtml(text);
+
+  // Convert simple fractions such as 3/4 or 13/20
+  // into vertically stacked fractions.
+  return safeText.replace(
+    /(?<![\d])(\d+)\s*\/\s*(\d+)(?![\d])/g,
+    (_, numerator, denominator) =>
+      `<span class="stacked-fraction" aria-label="${numerator} over ${denominator}">
+        <span class="fraction-numerator">${numerator}</span>
+        <span class="fraction-denominator">${denominator}</span>
+      </span>`
+  );
+}
+
 function applySelectedStyle(button, selected) {
   button.classList.toggle("selected", selected);
   button.setAttribute("aria-pressed", selected ? "true" : "false");
