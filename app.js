@@ -2241,6 +2241,7 @@ function ensureSubmitButton() {
 }
 
 
+
 function renderMathText(value) {
   const safeText = escapeHtml(String(value ?? ""));
 
@@ -2253,6 +2254,7 @@ function renderMathText(value) {
       </span>`
   );
 }
+
 
 
 function applySelectedStyle(button, selected) {
