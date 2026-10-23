@@ -1318,6 +1318,54 @@ async function renderParentPromotionRequests(childIds, children, availableClasse
   }
 }
 
+async function renderLearningHistory(studentId, currentClassId, target, isParent = false) {
+  if (!target) return;
+  target.innerHTML = `<div class="card"><h3>🕘 Learning History</h3><p class="muted">Loading previous class records…</p></div>`;
+  try {
+    const [classesResult, progressResult, attemptsResult] = await Promise.all([
+      sb.from("classes").select("id,name"),
+      sb.from("student_progress").select("class_id,completed").eq("student_id", studentId),
+      sb.from("quiz_attempts").select("class_id,score,total,created_at").eq("user_id", studentId).order("created_at", { ascending: false })
+    ]);
+    if (classesResult.error) throw classesResult.error;
+    if (progressResult.error) throw progressResult.error;
+    if (attemptsResult.error) throw attemptsResult.error;
+
+    const classNames = new Map((classesResult.data || []).map(c => [Number(c.id), c.name]));
+    const grouped = new Map();
+    const ensure = id => {
+      const key = Number(id);
+      if (!Number.isFinite(key) || key === Number(currentClassId)) return null;
+      if (!grouped.has(key)) grouped.set(key, { id: key, name: classNames.get(key) || `Class ${key}`, completed: 0, attempts: 0, questions: 0, correct: 0 });
+      return grouped.get(key);
+    };
+    (progressResult.data || []).forEach(row => {
+      const group = ensure(row.class_id);
+      if (group && row.completed) group.completed++;
+    });
+    (attemptsResult.data || []).forEach(row => {
+      const group = ensure(row.class_id);
+      if (!group) return;
+      group.attempts++;
+      group.questions += Number(row.total || 0);
+      group.correct += Number(row.score || 0);
+    });
+
+    const history = [...grouped.values()].sort((a, b) => b.id - a.id);
+    if (!history.length) {
+      target.innerHTML = `<div class="card"><h3>🕘 ${isParent ? "Previous Learning History" : "My Learning History"}</h3><p class="muted">No previous-class records are available yet. Your current-class progress is shown separately.</p></div>`;
+      return;
+    }
+    target.innerHTML = `<div class="card"><h3>🕘 ${isParent ? "Previous Learning History" : "My Learning History"}</h3><p class="muted">Your earlier achievements remain saved separately from your current class.</p><div class="grid">${history.map(item => {
+      const accuracy = item.questions ? Math.round(item.correct / item.questions * 100) : 0;
+      return `<div class="card" style="padding:14px"><h4 style="margin-top:0">${escapeHtml(item.name)}</h4><p><strong>Lessons completed:</strong> ${item.completed}</p><p><strong>Quiz attempts:</strong> ${item.attempts}</p><p><strong>Questions answered:</strong> ${item.questions}</p><p><strong>Correct answers:</strong> ${item.correct}</p><p><strong>Quiz accuracy:</strong> ${accuracy}%</p></div>`;
+    }).join("")}</div></div>`;
+  } catch (e) {
+    console.error("Learning history load error:", e);
+    target.innerHTML = `<div class="card"><h3>🕘 ${isParent ? "Previous Learning History" : "My Learning History"}</h3><p class="auth-msg">We could not load previous class records. Your saved records have not been changed. ${escapeHtml(e?.message || "Please refresh and try again.")}</p></div>`;
+  }
+}
+
 async function renderDash(openPractice = true) {
   $("welcome").textContent = `Welcome, ${profile.full_name} 👋🏾`;
   $(
@@ -1328,6 +1376,7 @@ async function renderDash(openPractice = true) {
     throw new Error("We could not identify your current class. Please check your student profile.");
   }
   await renderStudentPromotionPanel();
+  await renderLearningHistory(user.id, classRow.id, $("studentLearningHistory"), false);
   const { data: attempts, error: attemptsError } = await sb
     .from("quiz_attempts")
     .select("score,total,class_id")
@@ -1978,8 +2027,35 @@ async function renderParentDash() {
       ? `<p>🔍 <strong>Needs more practice:</strong> ${weak.join(" • ")}</p>`
       : `<p>🌟 <strong>Needs more practice:</strong> No subject is currently below 70% based on recorded practice.</p>`;
 
+    let previousHistoryHtml = `<p class="muted">No previous-class records found.</p>`;
+    try {
+      const [allClassesResult, allProgressResult, allAttemptsResult] = await Promise.all([
+        sb.from("classes").select("id,name"),
+        sb.from("student_progress").select("class_id,completed").eq("student_id", child.id),
+        sb.from("quiz_attempts").select("class_id,score,total").eq("user_id", child.id)
+      ]);
+      if (allClassesResult.error) throw allClassesResult.error;
+      if (allProgressResult.error) throw allProgressResult.error;
+      if (allAttemptsResult.error) throw allAttemptsResult.error;
+      const names = new Map((allClassesResult.data || []).map(c => [Number(c.id), c.name]));
+      const old = new Map();
+      const getOld = id => {
+        const key = Number(id);
+        if (!Number.isFinite(key) || key === Number(childClass?.id)) return null;
+        if (!old.has(key)) old.set(key, { name: names.get(key) || `Class ${key}`, completed: 0, attempts: 0, questions: 0, correct: 0 });
+        return old.get(key);
+      };
+      (allProgressResult.data || []).forEach(row => { const g = getOld(row.class_id); if (g && row.completed) g.completed++; });
+      (allAttemptsResult.data || []).forEach(row => { const g = getOld(row.class_id); if (g) { g.attempts++; g.questions += Number(row.total || 0); g.correct += Number(row.score || 0); } });
+      const oldRows = [...old.values()];
+      previousHistoryHtml = oldRows.length ? oldRows.map(g => `<div class="card" style="padding:12px"><strong>${escapeHtml(g.name)}</strong><p style="margin:6px 0"><strong>Lessons completed:</strong> ${g.completed}</p><p style="margin:6px 0"><strong>Quiz attempts:</strong> ${g.attempts}</p><p style="margin:6px 0"><strong>Quiz accuracy:</strong> ${g.questions ? Math.round(g.correct / g.questions * 100) : 0}%</p></div>`).join("") : `<p class="muted">No previous-class records found.</p>`;
+    } catch (historyError) {
+      console.error("Parent learning history error:", historyError);
+      previousHistoryHtml = `<p class="auth-msg">Previous learning history could not be loaded. Existing records have not been changed.</p>`;
+    }
+
     cards.push(
-      `<div class="card"><h3>🎓 ${escapeHtml( child.full_name )}</h3><p class="muted">${escapeHtml( child.level || "Student" )} • ${escapeHtml(child.language || "English")} • ${escapeHtml( child.country || "" )}</p><p class="muted">Quiz statistics below are for the current class${childClass ? ` (${escapeHtml(childClass.name)})` : " (class not mapped)"}.</p><div class="stats"><div><b>${totalQuestions}</b><small>Questions</small></div><div><b>${correct}</b><small>Correct</small></div><div><b>${accuracy}%</b><small>Accuracy</small></div></div><p><strong>Lessons completed:</strong> ${ progress?.length || 0 }</p>${weakBlock}<h4 style="margin-bottom:10px">📚 Subject progress</h4><div class="grid">${ subjectRows || '<div class="card"><p class="muted">No subject practice recorded yet.</p></div>' }</div><h4 style="margin:18px 0 8px">🕘 Recent practice</h4>${recentBlock}</div>`
+      `<div class="card"><h3>🎓 ${escapeHtml( child.full_name )}</h3><p class="muted">${escapeHtml( child.level || "Student" )} • ${escapeHtml(child.language || "English")} • ${escapeHtml( child.country || "" )}</p><p class="muted">Quiz statistics below are for the current class${childClass ? ` (${escapeHtml(childClass.name)})` : " (class not mapped)"}.</p><div class="stats"><div><b>${totalQuestions}</b><small>Questions</small></div><div><b>${correct}</b><small>Correct</small></div><div><b>${accuracy}%</b><small>Accuracy</small></div></div><p><strong>Lessons completed:</strong> ${ progress?.length || 0 }</p>${weakBlock}<h4 style="margin-bottom:10px">📚 Subject progress</h4><div class="grid">${ subjectRows || '<div class="card"><p class="muted">No subject practice recorded yet.</p></div>' }</div><h4 style="margin:18px 0 8px">🕘 Recent practice</h4>${recentBlock}<h4 style="margin:18px 0 8px">📚 Previous Class History</h4><div class="grid">${previousHistoryHtml}</div></div>`
     );
   }
   $("children").innerHTML =
