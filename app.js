@@ -14,6 +14,11 @@ let currentSubject = null,
   currentScore = 0,
   answered = false;
 
+const APP_SESSION_KEY = "passOnceActiveSession_v1";
+const APP_INACTIVITY_LIMIT_MS = 2 * 60 * 60 * 1000; // 2 hours
+let suppressSessionSave = false;
+let currentLessonId = null;
+
 function show(id) {
   [
     "auth",
@@ -28,7 +33,132 @@ function show(id) {
   ].forEach((x) => $(x).classList.add("hidden"));
 
   $(id).classList.remove("hidden");
+  saveActiveSession();
 }
+
+function getVisibleAppView() {
+  return [
+    "auth", "setup", "subjectSelect", "curriculumView", "dash",
+    "parentDash", "quiz", "lessonView", "tutorView"
+  ].find((id) => $(id) && !$(id).classList.contains("hidden")) || "dash";
+}
+
+function saveActiveSession() {
+  if (suppressSessionSave) return;
+  try {
+    const view = getVisibleAppView();
+    // Do not keep an authenticated learning session across an explicit logout.
+    if (view === "auth" || view === "setup") {
+      if (view === "auth") sessionStorage.removeItem(APP_SESSION_KEY);
+      return;
+    }
+    const state = {
+      userId: user?.id || null,
+      view,
+      savedAt: Date.now(),
+      lastActivityAt: Date.now(),
+      currentSubject,
+      currentTopic,
+      currentQuestions,
+      currentAnswers,
+      currentIndex,
+      currentScore,
+      answered,
+      currentLessonId,
+      curriculumReturn,
+      chatHtml: $("chat")?.innerHTML || "",
+      askValue: $("ask")?.value || ""
+    };
+    sessionStorage.setItem(APP_SESSION_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn("Could not preserve the current learning session:", e);
+  }
+}
+
+function noteSessionActivity() {
+  try {
+    const raw = sessionStorage.getItem(APP_SESSION_KEY);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    state.lastActivityAt = Date.now();
+    sessionStorage.setItem(APP_SESSION_KEY, JSON.stringify(state));
+  } catch (_) {}
+}
+
+async function restoreActiveSession() {
+  let state;
+  try {
+    state = JSON.parse(sessionStorage.getItem(APP_SESSION_KEY) || "null");
+  } catch (_) {
+    state = null;
+  }
+  if (!state || !user || state.userId !== user.id) return;
+
+  const lastActivity = Number(state.lastActivityAt || state.savedAt || 0);
+  if (!lastActivity || Date.now() - lastActivity > APP_INACTIVITY_LIMIT_MS) {
+    sessionStorage.removeItem(APP_SESSION_KEY);
+    return;
+  }
+
+  suppressSessionSave = true;
+  try {
+    currentSubject = state.currentSubject || null;
+    currentTopic = state.currentTopic || null;
+    currentQuestions = Array.isArray(state.currentQuestions) ? state.currentQuestions : [];
+    currentAnswers = Array.isArray(state.currentAnswers) ? state.currentAnswers : [];
+    currentIndex = Math.max(0, Math.min(Number(state.currentIndex || 0), Math.max(0, currentQuestions.length - 1)));
+    currentScore = Number(state.currentScore || 0);
+    answered = Boolean(state.answered);
+    currentLessonId = state.currentLessonId || null;
+    curriculumReturn = state.curriculumReturn || null;
+
+    if (state.view === "quiz" && currentSubject) {
+      if (currentQuestions.length) {
+        show("quiz");
+        renderQ();
+      } else {
+        await start(currentSubject.id, currentSubject.name);
+      }
+    } else if (state.view === "lessonView" && currentTopic && currentSubject) {
+      await startLesson(currentTopic.id, currentSubject.name, currentTopic.name, currentLessonId);
+    } else if (state.view === "curriculumView") {
+      await openCurriculum();
+      if (state.curriculumReturn) {
+        const savedTerm = state.curriculumReturn;
+        await openCurriculumTerm(
+          savedTerm.termId,
+          savedTerm.termName,
+          savedTerm.subject,
+          savedTerm.versionId,
+          `curriculumWeeks-${Number(savedTerm.subject.id)}`
+        );
+      }
+    } else if (state.view === "tutorView") {
+      show("tutorView");
+      if ($("chat")) $("chat").innerHTML = state.chatHtml || '<div class="bubble">Hi! I am your Pass Once AI Tutor. Ask me a school question.</div>';
+      if ($("ask")) $("ask").value = state.askValue || "";
+    } else if (state.view === "subjectSelect") {
+      show("subjectSelect");
+    } else if (state.view === "parentDash" && profile?.role === "parent") {
+      await renderParentDash();
+    } else if (state.view === "dash") {
+      show("dash");
+    }
+  } catch (e) {
+    console.warn("Could not restore the previous learning screen:", e);
+  } finally {
+    suppressSessionSave = false;
+    saveActiveSession();
+  }
+}
+
+// Keep the activity timestamp current while the user works. Switching tabs
+// does not reset the page; the saved screen expires only after 2 hours idle.
+["pointerdown", "keydown", "input", "touchstart"].forEach((eventName) => {
+  document.addEventListener(eventName, noteSessionActivity, true);
+});
+window.addEventListener("pagehide", saveActiveSession);
+window.addEventListener("beforeunload", saveActiveSession);
 function message(text = "") {
   $("msg").textContent = text;
 }
@@ -126,10 +256,13 @@ $("authBtn").onclick = async () => {
 };
 
 async function load() {
+  suppressSessionSave = true;
   try {
     user = await getCurrentUser();
     if (!user) {
+      sessionStorage.removeItem(APP_SESSION_KEY);
       $("logout").classList.add("hidden");
+      suppressSessionSave = false;
       show("auth");
       return;
     }
@@ -144,22 +277,27 @@ async function load() {
       const requestedRole =
         user.user_metadata?.account_type === "parent" ? "parent" : "student";
       prepareSetup(requestedRole);
+      suppressSessionSave = false;
       show("setup");
       return;
     }
-profile = p;
-
-if (profile.role === "parent") {
-  await renderParentDash();
-} else {
-  await renderDash();
-  await resumeTimRequest();
-}
+    profile = p;
+    if (profile.role === "parent") {
+      await renderParentDash();
+    } else {
+      await renderDash();
+      await resumeTimRequest();
+    }
+    suppressSessionSave = false;
+    await restoreActiveSession();
   } catch (e) {
+    suppressSessionSave = false;
     const msg = e.message || "Could not load your account.";
     if ($("setupMsg") && !$("setup").classList.contains("hidden"))
       setupMessage("❌ " + msg);
     else message(msg);
+  } finally {
+    suppressSessionSave = false;
   }
 }
 
@@ -2300,6 +2438,7 @@ function renderQ() {
     b.onclick = () => answer(Number(b.dataset.i));
     applySelectedStyle(b, selected);
   });
+  saveActiveSession();
 }
 function correctIndex(q) {
   const v = String(q.correct_answer || "")
@@ -2316,6 +2455,7 @@ function answer(n) {
     .querySelectorAll(".option")
     .forEach((b) => applySelectedStyle(b, Number(b.dataset.i) === n));
   $("explain").classList.add("hidden");
+  saveActiveSession();
   $("next").textContent =
     currentIndex < currentQuestions.length - 1
       ? "Next Question"
@@ -2405,6 +2545,7 @@ async function submitQuiz() {
 $("goDashboard").onclick = () => renderDash(false);
 $("back").onclick = () => renderDash(true);
 $("logout").onclick = async () => {
+  sessionStorage.removeItem(APP_SESSION_KEY);
   await sb.auth.signOut();
   
   // Clear Tim's previous question and messages on logout.
@@ -2471,7 +2612,8 @@ sb.auth.onAuthStateChange((event, session) => {
 });
 setAuthMode(false);
 load();
-async function startLesson(topicId, subjectName, topicName) {
+async function startLesson(topicId, subjectName, topicName, restoreLessonId = null) {
+  currentLessonId = null;
   currentTopic = {
     id: topicId,
     name: topicName
@@ -2561,6 +2703,16 @@ async function startLesson(topicId, subjectName, topicName) {
       `;
 
       return;
+    }
+
+    if (restoreLessonId) {
+      const lessonToRestore = lessons.find(
+        (item) => Number(item.id) === Number(restoreLessonId)
+      );
+      if (lessonToRestore) {
+        displayLesson(lessonToRestore, subjectName, topicName, topicId, lessons);
+        return;
+      }
     }
 
     /*
@@ -2738,6 +2890,7 @@ document
     };
   });
 
+      saveActiveSession();
       return;
     }
 
@@ -2780,6 +2933,9 @@ function displayLesson(
   topicId,
   lessons = []
 ) {
+  currentLessonId = Number(lesson.id) || null;
+  currentTopic = { id: topicId, name: topicName };
+  currentSubject = { id: currentSubject?.id || null, name: subjectName };
   $("lessonTitle").textContent = lesson.title;
 
   $("lessonSubject").textContent =
@@ -3070,6 +3226,7 @@ if (lessons.length > 1) {
         (e.message || "Please try again.");
     }
   };
+  saveActiveSession();
 }
 
 const timStartBtn = $("timStartBtn");
