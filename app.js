@@ -2240,21 +2240,20 @@ function ensureSubmitButton() {
   return b;
 }
 
-function renderMathText(value) {
-  const text = String(value ?? "");
-  const safeText = escapeHtml(text);
 
-  // Convert simple fractions such as 3/4 or 13/20
-  // into vertically stacked fractions.
+function renderMathText(value) {
+  const safeText = escapeHtml(String(value ?? ""));
+
   return safeText.replace(
-    /(?<![\d])(\d+)\s*\/\s*(\d+)(?![\d])/g,
+    /\[\[frac:(\d+):(\d+)\]\]/g,
     (_, numerator, denominator) =>
-      `<span class="stacked-fraction" aria-label="${numerator} over ${denominator}">
+      `<span class="stacked-fraction" role="math" aria-label="${numerator} over ${denominator}">
         <span class="fraction-numerator">${numerator}</span>
         <span class="fraction-denominator">${denominator}</span>
       </span>`
   );
 }
+
 
 function applySelectedStyle(button, selected) {
   button.classList.toggle("selected", selected);
