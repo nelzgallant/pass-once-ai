@@ -820,3 +820,26 @@
     font-size: 1.05rem;
   }
 }
+
+
+.stacked-fraction {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+  align-items: stretch;
+  text-align: center;
+  line-height: 1.15;
+  margin: 0 0.12em;
+  white-space: nowrap;
+}
+
+.fraction-numerator {
+  display: block;
+  border-bottom: 1.5px solid currentColor;
+  padding: 0 0.18em 0.08em;
+}
+
+.fraction-denominator {
+  display: block;
+  padding: 0.08em 0.18em 0;
+}
