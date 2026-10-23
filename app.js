@@ -2280,11 +2280,11 @@ function renderQ() {
   $("count").textContent = `Question ${currentIndex + 1} of ${ currentQuestions.length }`;
   $("bar").style.width =
     ((currentIndex + 1) / currentQuestions.length) * 100 + "%";
-  $("question").textContent = q.question;
+  $("question").innerHTML = renderMathText(q.question);
   $("options").innerHTML = opts
     .map(
       (x, n) =>
-        `<button class="option" data-i="${n}" type="button">${String.fromCharCode( 65 + n )}. ${escapeHtml(x)}</button>`
+        `<button class="option" data-i="${n}" type="button">${String.fromCharCode(65 + n)}. ${renderMathText(x)}</button>`
     )
     .join("");
   $("explain").classList.add("hidden");
