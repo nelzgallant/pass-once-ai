@@ -1156,6 +1156,168 @@ if (recommendedPracticeBtn && d.attentionTopic) {
     }
   }
 }
+
+function promotionSequenceNext(level) {
+  return ({
+    JSS1: "JSS2",
+    JSS2: "JSS3",
+    JSS3: "SS1",
+    SS1: "SS2",
+    SS2: "SS3",
+  })[normalizeLevel(level)] || null;
+}
+
+async function renderStudentPromotionPanel() {
+  const card = $("studentPromotionCard");
+  if (!card || !user || !profile || String(profile.role || "").toLowerCase() !== "student") return;
+  card.classList.remove("hidden");
+  const text = $("studentPromotionText");
+  const button = $("requestPromotionBtn");
+  const msg = $("studentPromotionMsg");
+  msg.textContent = "";
+  button.classList.add("hidden");
+  button.disabled = false;
+
+  try {
+    const nextLabel = promotionSequenceNext(profile.level);
+    if (!nextLabel) {
+      text.textContent = "You are in the final configured class. There is no next class in the current promotion pathway.";
+      return;
+    }
+
+    const { data: classes, error: classError } = await sb.from("classes").select("id,name");
+    if (classError) throw classError;
+    const nextClass = (classes || []).find(c => normalizeLevel(c.name) === nextLabel);
+    if (!nextClass) {
+      text.textContent = `Your next class (${nextLabel}) has not been configured yet. Please contact support.`;
+      return;
+    }
+
+    const { data: requests, error: requestError } = await sb
+      .from("promotion_requests")
+      .select("id,status,current_class_id,requested_class_id,requested_at,parent_note")
+      .eq("student_id", user.id)
+      .order("requested_at", { ascending: false })
+      .limit(1);
+    if (requestError) throw requestError;
+
+    const latest = requests && requests[0];
+    if (latest && latest.status === "pending") {
+      text.textContent = `Your request to move from ${profile.level} to ${nextLabel} is waiting for your linked parent to review it.`;
+      return;
+    }
+    if (latest && latest.status === "approved") {
+      text.textContent = "Your latest promotion was approved. Refresh your dashboard if your class details have not updated yet.";
+    } else if (latest && latest.status === "declined") {
+      text.textContent = `Your previous request was declined.${latest.parent_note ? " Parent's note: " + latest.parent_note : ""} You may submit a new request when ready.`;
+    } else {
+      text.textContent = `You can request promotion from ${profile.level} to ${nextLabel}. Your class will not change until your linked parent approves.`;
+    }
+    button.textContent = "Request Class Promotion";
+    button.classList.remove("hidden");
+    button.onclick = async () => {
+      button.disabled = true;
+      msg.textContent = "Submitting your request…";
+      try {
+        const { data, error } = await sb.rpc("request_class_promotion");
+        if (error) throw error;
+        msg.textContent = `Request submitted successfully${data ? " (request #" + data + ")" : ""}. Your linked parent can now review it.`;
+        await renderStudentPromotionPanel();
+      } catch (e) {
+        msg.textContent = e?.message || "Could not submit the promotion request.";
+        button.disabled = false;
+      }
+    };
+  } catch (e) {
+    console.error("Promotion panel error:", e);
+    text.textContent = "We could not load your promotion status right now.";
+    msg.textContent = e?.message || "Please refresh and try again.";
+  }
+}
+
+async function renderParentPromotionRequests(childIds, children, availableClasses) {
+  const container = $("promotionRequests");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!childIds || !childIds.length) return;
+
+  try {
+    const { data: requests, error } = await sb
+      .from("promotion_requests")
+      .select("id,student_id,current_class_id,requested_class_id,requested_at,status")
+      .in("student_id", childIds)
+      .eq("status", "pending")
+      .order("requested_at", { ascending: true });
+    if (error) throw error;
+
+    const childById = new Map((children || []).map(c => [c.id, c]));
+    const classById = new Map((availableClasses || []).map(c => [Number(c.id), c]));
+    if (!requests || !requests.length) {
+      container.innerHTML = `<div class="card"><h3>🎓 Promotion requests</h3><p class="muted">There are no pending class-promotion requests from your linked children.</p></div>`;
+      return;
+    }
+
+    container.innerHTML = `<h3>🎓 Class Promotion Requests</h3>` + requests.map(r => {
+      const child = childById.get(r.student_id);
+      const fromClass = classById.get(Number(r.current_class_id));
+      const toClass = classById.get(Number(r.requested_class_id));
+      return `<div class="card" style="margin-bottom:12px">
+        <h4 style="margin-top:0">${escapeHtml(child?.full_name || "Your child")}</h4>
+        <p>Request: <strong>${escapeHtml(fromClass?.name || "Current class")}</strong> → <strong>${escapeHtml(toClass?.name || "Next class")}</strong></p>
+        <p class="muted">Submitted${formatDate(r.requested_at)}</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="primary promotion-approve-btn" type="button" data-request-id="${Number(r.id)}">Approve promotion</button>
+          <button class="ghost promotion-decline-btn" type="button" data-request-id="${Number(r.id)}">Decline</button>
+        </div>
+        <p class="auth-msg promotion-request-msg" id="promotionRequestMsg-${Number(r.id)}" role="status" aria-live="polite"></p>
+      </div>`;
+    }).join("");
+
+    container.querySelectorAll(".promotion-approve-btn").forEach(button => {
+      button.onclick = async () => {
+        const requestId = Number(button.dataset.requestId);
+        const msg = $(`promotionRequestMsg-${requestId}`);
+        if (!confirm("Approve this class promotion? The student's current class will change, while previous learning records remain preserved.")) return;
+        button.disabled = true;
+        msg.textContent = "Approving promotion…";
+        try {
+          const { data, error } = await sb.rpc("approve_class_promotion", { p_request_id: requestId });
+          if (error) throw error;
+          msg.textContent = data || "Promotion approved.";
+          await renderParentDash();
+        } catch (e) {
+          msg.textContent = e?.message || "Could not approve this request.";
+          button.disabled = false;
+        }
+      };
+    });
+    container.querySelectorAll(".promotion-decline-btn").forEach(button => {
+      button.onclick = async () => {
+        const requestId = Number(button.dataset.requestId);
+        const msg = $(`promotionRequestMsg-${requestId}`);
+        if (!confirm("Decline this class-promotion request? The student's current class and learning records will remain unchanged.")) return;
+        button.disabled = true;
+        msg.textContent = "Declining request…";
+        try {
+          const { data, error } = await sb.rpc("decline_class_promotion", {
+            p_request_id: requestId,
+            p_parent_note: null
+          });
+          if (error) throw error;
+          msg.textContent = data || "Promotion request declined.";
+          await renderParentDash();
+        } catch (e) {
+          msg.textContent = e?.message || "Could not decline this request.";
+          button.disabled = false;
+        }
+      };
+    });
+  } catch (e) {
+    console.error("Parent promotion requests error:", e);
+    container.innerHTML = `<div class="card"><h3>🎓 Promotion requests</h3><p class="muted">We could not load promotion requests.</p><p class="auth-msg">${escapeHtml(e?.message || "Please refresh and try again.")}</p></div>`;
+  }
+}
+
 async function renderDash(openPractice = true) {
   $("welcome").textContent = `Welcome, ${profile.full_name} 👋🏾`;
   $(
@@ -1165,6 +1327,7 @@ async function renderDash(openPractice = true) {
   if (!classRow) {
     throw new Error("We could not identify your current class. Please check your student profile.");
   }
+  await renderStudentPromotionPanel();
   const { data: attempts, error: attemptsError } = await sb
     .from("quiz_attempts")
     .select("score,total,class_id")
@@ -1720,6 +1883,7 @@ async function renderParentDash() {
   if (error) throw error;
   const childIds = (links || []).map((x) => x.child_id);
   if (!childIds.length) {
+    $("promotionRequests").innerHTML = "";
     $(
       "children"
     ).innerHTML = `<div class="card"><h3>No child connected yet</h3><p class="muted">Generate a code from your child's Student Dashboard, then enter it above.</p></div>`;
@@ -1820,6 +1984,7 @@ async function renderParentDash() {
   }
   $("children").innerHTML =
     cards.join("") || `<div class="card">No linked children found.</div>`;
+  await renderParentPromotionRequests(childIds, children || [], availableClasses || []);
 }
 
 function formatDate(value) {
