@@ -363,10 +363,14 @@ async function findClass() {
 }
 
 async function getStudentProgressData() {
+  if (!classRow) classRow = await findClass();
+  if (!classRow) throw new Error("We could not identify your current class. Please check your student profile.");
+
   const { data: attempts, error } = await sb
     .from("quiz_attempts")
-    .select("score,total,subject,topic_id,created_at")
+    .select("score,total,subject,topic_id,created_at,class_id")
     .eq("user_id", user.id)
+    .eq("class_id", classRow.id)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -1157,10 +1161,14 @@ async function renderDash(openPractice = true) {
     "profile"
   ).textContent = `${profile.country} • ${profile.level} • ${profile.language}`;
   classRow = await findClass();
+  if (!classRow) {
+    throw new Error("We could not identify your current class. Please check your student profile.");
+  }
   const { data: attempts, error: attemptsError } = await sb
     .from("quiz_attempts")
-    .select("score,total")
-    .eq("user_id", user.id);
+    .select("score,total,class_id")
+    .eq("user_id", user.id)
+    .eq("class_id", classRow.id);
   if (attemptsError) throw attemptsError;
   const a = attempts || [],
     attempted = a.reduce((n, x) => n + Number(x.total || 0), 0),
@@ -1722,15 +1730,32 @@ async function renderParentDash() {
     .in("id", childIds);
   if (childError) throw childError;
 
+  const { data: availableClasses, error: classesError } = await sb
+    .from("classes")
+    .select("id,name");
+  if (classesError) throw classesError;
+
   const cards = [];
   for (const child of children || []) {
-    const { data: attempts, error: attemptError } = await sb
-      .from("quiz_attempts")
-      .select("score,total,subject,created_at")
-      .eq("user_id", child.id)
-      .order("created_at", { ascending: false });
-    if (attemptError) throw attemptError;
-    const a = attempts || [];
+    const wantedClass = normalizeLevel(child.level);
+    const childClass = (availableClasses || []).find(
+      (c) => normalizeLevel(c.name) === wantedClass
+    ) || (wantedClass === "JSS1" ? { id: 1, name: "JSS1" } : wantedClass === "JSS2" ? { id: 2, name: "JSS2" } : null);
+
+    // Only count attempts from the child's current class. Previous-class
+    // attempts remain stored and can be shown separately in a later history view.
+    let attempts = [];
+    if (childClass) {
+      const { data, error: attemptError } = await sb
+        .from("quiz_attempts")
+        .select("score,total,subject,created_at,class_id")
+        .eq("user_id", child.id)
+        .eq("class_id", childClass.id)
+        .order("created_at", { ascending: false });
+      if (attemptError) throw attemptError;
+      attempts = data || [];
+    }
+    const a = attempts;
     const totalQuestions = a.reduce((n, x) => n + Number(x.total || 0), 0);
     const correct = a.reduce((n, x) => n + Number(x.score || 0), 0);
     const accuracy = totalQuestions
@@ -1788,7 +1813,7 @@ async function renderParentDash() {
       : `<p>🌟 <strong>Needs more practice:</strong> No subject is currently below 70% based on recorded practice.</p>`;
 
     cards.push(
-      `<div class="card"><h3>🎓 ${escapeHtml( child.full_name )}</h3><p class="muted">${escapeHtml( child.level || "Student" )} • ${escapeHtml(child.language || "English")} • ${escapeHtml( child.country || "" )}</p><div class="stats"><div><b>${totalQuestions}</b><small>Questions</small></div><div><b>${correct}</b><small>Correct</small></div><div><b>${accuracy}%</b><small>Accuracy</small></div></div><p><strong>Lessons completed:</strong> ${ progress?.length || 0 }</p>${weakBlock}<h4 style="margin-bottom:10px">📚 Subject progress</h4><div class="grid">${ subjectRows || '<div class="card"><p class="muted">No subject practice recorded yet.</p></div>' }</div><h4 style="margin:18px 0 8px">🕘 Recent practice</h4>${recentBlock}</div>`
+      `<div class="card"><h3>🎓 ${escapeHtml( child.full_name )}</h3><p class="muted">${escapeHtml( child.level || "Student" )} • ${escapeHtml(child.language || "English")} • ${escapeHtml( child.country || "" )}</p><p class="muted">Quiz statistics below are for the current class${childClass ? ` (${escapeHtml(childClass.name)})` : " (class not mapped)"}.</p><div class="stats"><div><b>${totalQuestions}</b><small>Questions</small></div><div><b>${correct}</b><small>Correct</small></div><div><b>${accuracy}%</b><small>Accuracy</small></div></div><p><strong>Lessons completed:</strong> ${ progress?.length || 0 }</p>${weakBlock}<h4 style="margin-bottom:10px">📚 Subject progress</h4><div class="grid">${ subjectRows || '<div class="card"><p class="muted">No subject practice recorded yet.</p></div>' }</div><h4 style="margin:18px 0 8px">🕘 Recent practice</h4>${recentBlock}</div>`
     );
   }
   $("children").innerHTML =
@@ -2496,6 +2521,7 @@ async function submitQuiz() {
   user_id: user.id,
   subject: currentSubject.name,
   topic_id: Number(currentTopic.id),
+  class_id: Number(classRow?.id),
   score: currentScore,
   total: currentQuestions.length,
 });
