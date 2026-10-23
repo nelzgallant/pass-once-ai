@@ -62,7 +62,16 @@
 </section>
 <section id="setup" class="hidden"><div class="section"><span id="setupPill" class="pill">Student profile</span><h2 id="setupTitle">Tell us about your learning</h2></div><div class="card"><label>Full name<input id="setupName" placeholder="Your full name"></label><div id="studentSetupFields"><label>Country<select id="country"><option>Nigeria</option><option>Ghana</option><option>Sierra Leone</option><option>The Gambia</option><option>Liberia</option></select></label><label>Level<select id="level"><option>JSS 1</option><option>JSS 2</option><option>JSS 3</option><option>SS 1</option><option>SS 2</option><option>SS 3</option></select></label><label>Learning language<select id="language"><option>English</option><option>Yorùbá</option><option>Igbo</option><option>Hausa</option><option>Nigerian Pidgin</option></select></label></div><button id="saveProfile" class="primary" type="button">Continue</button><p id="setupMsg" class="auth-msg"></p></div></section>
 
+
 <section id="subjectSelect" class="hidden">
+
+  <!-- My Dashboard moved to the top -->
+  <div class="card" style="margin-bottom:16px">
+    <button id="goDashboard" class="ghost" type="button">
+      📊 My Dashboard
+    </button>
+  </div>
+
   <div class="section">
     <span class="pill">Practice</span>
     <h2>What would you like to practice?</h2>
@@ -77,25 +86,24 @@
     <p id="timSolutionQuestion"></p>
     <div id="timSolutionSteps"></div>
     <h4 id="timSolutionAnswer"></h4>
+
     <button id="timLearnMore" class="primary" type="button">
       📚 Learn More
     </button>
-    <p id="timSolutionMsg" class="auth-msg"></p>
-    <button
-  id="timBackToDashboard"
-  class="primary hidden"
-  type="button"
->
-  🏠 Back to Dashboard
-</button>
-  </div>
 
-  <div class="card" style="margin-top:16px">
-    <button id="goDashboard" class="ghost" type="button">
-      📊 My Dashboard
+    <p id="timSolutionMsg" class="auth-msg"></p>
+
+    <button
+      id="timBackToDashboard"
+      class="primary hidden"
+      type="button"
+    >
+      🏠 Back to Dashboard
     </button>
   </div>
+
 </section>
+
 
 <section id="dash" class="hidden"><div class="section"><span class="pill">Student Dashboard</span><h2 id="welcome"></h2><p id="profile"></p></div><div class="stats"><div><b id="attempts">0</b><small>Questions</small></div><div><b id="correct">0</b><small>Correct</small></div><div><b id="accuracy">0%</b><small>Accuracy</small></div></div>
   
