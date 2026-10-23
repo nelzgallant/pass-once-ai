@@ -1082,9 +1082,25 @@ ${
       </div>
     `;
 
+    const closeProgressOnOutsideClick = (event) => {
+      // The first child is the visible progress card. Clicks on the dimmed
+      // backdrop or anywhere outside that card close the progress panel.
+      const progressCard = box.firstElementChild;
+      if (!progressCard || !progressCard.contains(event.target)) {
+        box.classList.add("hidden");
+        document.removeEventListener("click", closeProgressOnOutsideClick);
+      }
+    };
+
     $("closeProgress").onclick = () => {
       box.classList.add("hidden");
+      document.removeEventListener("click", closeProgressOnOutsideClick);
     };
+
+    // Register after the async progress load so the click that opened the
+    // panel does not immediately close it while bubbling to document.
+    document.addEventListener("click", closeProgressOnOutsideClick);
+
 document.querySelectorAll(".practice-again-btn").forEach(btn => {
   btn.onclick = async () => {
     const topicId = Number(btn.dataset.topicId);
