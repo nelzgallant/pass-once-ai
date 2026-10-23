@@ -393,8 +393,9 @@ async function getStudentProgressData() {
 
   const { data: progress, error: progressError } = await sb
     .from("student_progress")
-    .select("id,completed")
+    .select("id,completed,class_id")
     .eq("student_id", user.id)
+    .eq("class_id", classRow.id)
     .eq("completed", true);
 
   if (progressError) throw progressError;
@@ -1763,8 +1764,9 @@ async function renderParentDash() {
       : 0;
     const { data: progress, error: progressError } = await sb
       .from("student_progress")
-      .select("completed")
+      .select("completed,class_id")
       .eq("student_id", child.id)
+      .eq("class_id", childClass?.id ?? -1)
       .eq("completed", true);
     if (progressError) throw progressError;
 
@@ -2688,8 +2690,9 @@ async function startLesson(topicId, subjectName, topicName, restoreLessonId = nu
         const { data: progressRows, error: progressError } =
           await sb
             .from("student_progress")
-            .select("lesson_id,completed")
+            .select("lesson_id,completed,class_id")
             .eq("student_id", user.id)
+            .eq("class_id", classRow?.id ?? -1)
             .in("lesson_id", lessonIds);
 
         if (progressError) throw progressError;
@@ -3164,6 +3167,7 @@ $("practiceLesson").onclick = async () => {
         .select("id")
         .eq("student_id", user.id)
         .eq("lesson_id", lessonId)
+        .eq("class_id", classRow?.id ?? -1)
         .limit(1)
         .maybeSingle();
 
@@ -3186,6 +3190,7 @@ $("practiceLesson").onclick = async () => {
           .insert({
             student_id: user.id,
             lesson_id: lessonId,
+            class_id: Number(classRow?.id),
             completed: true,
             updated_at: new Date().toISOString()
           });
