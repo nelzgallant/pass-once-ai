@@ -3288,10 +3288,60 @@ function displayLesson(
       return fragment;
     }
 
-    // Create a fresh element without copying any attributes.
+    // Create a fresh element without copying arbitrary attributes.
+    // Preserve only known math-fraction class names so the lesson's
+    // numerator/denominator layout survives the HTML safety cleanup.
     const cleanElement = document.createElement(
       tag.toLowerCase()
     );
+
+    if (tag === "SPAN") {
+      const safeMathClasses = new Set([
+        "fraction", "stacked-fraction", "fraction-display", "math-fraction",
+        "fraction-numerator", "fraction-denominator", "numerator", "denominator",
+        "fraction-top", "fraction-bottom", "fraction-bar", "fraction-line"
+      ]);
+      const keptClasses = Array.from(node.classList || [])
+        .filter(className => safeMathClasses.has(className));
+      if (keptClasses.length) {
+        cleanElement.className = keptClasses.join(" ");
+      }
+
+      // Apply safe inline layout styles because lesson HTML is sanitized
+      // into fresh elements and may not retain its original stylesheet.
+      if (keptClasses.some(className => [
+        "fraction", "stacked-fraction", "fraction-display", "math-fraction"
+      ].includes(className))) {
+        cleanElement.style.display = "inline-flex";
+        cleanElement.style.flexDirection = "column";
+        cleanElement.style.alignItems = "stretch";
+        cleanElement.style.verticalAlign = "middle";
+        cleanElement.style.textAlign = "center";
+        cleanElement.style.lineHeight = "1.05";
+        cleanElement.style.margin = "0 0.12em";
+        cleanElement.style.whiteSpace = "nowrap";
+      }
+      if (keptClasses.some(className => [
+        "fraction-numerator", "numerator", "fraction-top"
+      ].includes(className))) {
+        cleanElement.style.display = "block";
+        cleanElement.style.padding = "0 0.18em 0.08em";
+        cleanElement.style.borderBottom = "1.5px solid currentColor";
+        cleanElement.style.textAlign = "center";
+      }
+      if (keptClasses.some(className => [
+        "fraction-denominator", "denominator", "fraction-bottom"
+      ].includes(className))) {
+        cleanElement.style.display = "block";
+        cleanElement.style.padding = "0.08em 0.18em 0";
+        cleanElement.style.textAlign = "center";
+      }
+      if (keptClasses.includes("fraction-bar") || keptClasses.includes("fraction-line")) {
+        cleanElement.style.display = "block";
+        cleanElement.style.borderTop = "1.5px solid currentColor";
+        cleanElement.style.width = "100%";
+      }
+    }
 
     for (const child of node.childNodes) {
       const cleanChild = cleanLessonNode(child);
