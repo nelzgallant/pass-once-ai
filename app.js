@@ -3325,6 +3325,18 @@ function displayLesson(
       }
     }
 
+    // Keep adjacent stacked fractions visually distinct. Some curriculum
+    // examples place several inline fraction wrappers next to one another;
+    // without a small gap their fraction bars merge into one long line.
+    if (
+      tag === "SPAN" &&
+      cleanElement.style.display === "inline-flex" &&
+      cleanElement.style.flexDirection === "column"
+    ) {
+      cleanElement.style.marginRight = "0.45em";
+      cleanElement.style.verticalAlign = "middle";
+    }
+
     for (const child of node.childNodes) {
       const cleanChild = cleanLessonNode(child);
       if (cleanChild) cleanElement.appendChild(cleanChild);
