@@ -1523,7 +1523,7 @@ async function renderSeniorSubjectManager() {
   panel.classList.remove("hidden");
   message.textContent = "Checking your current subjects and recent requests…";
   saveButton.disabled = true;
-  if (changeForm) changeForm.classList.remove("hidden");
+  if (changeForm) changeForm.classList.add("hidden");
 
   try {
     const [mappedResult, selectedResult, pendingResult] = await Promise.all([
@@ -1540,17 +1540,13 @@ async function renderSeniorSubjectManager() {
     panel.dataset.latestRequestStatus = latestRequest?.status || "none";
     startSubjectRequestStatusWatcher();
     if (latestRequest?.status === "pending") {
+      panel.dataset.editMode = "false";
       $("managedSubjectChoices").innerHTML = `<div class="card"><strong>⏳ Your subject-change request is awaiting parent approval.</strong><p class="muted">Submitted ${formatDate(latestRequest.requested_at)}. You cannot submit another request until your parent responds.</p><p class="muted">Your current subjects remain unchanged while the request is pending.</p></div>`;
       if (changeForm) changeForm.classList.add("hidden");
       message.textContent = `Pending request #${latestRequest.id}. The request form is paused until your parent responds.`;
       saveButton.disabled = true;
       return;
     }
-
-    const availableIds = [...new Set((mappedResult.data || []).map(x => Number(x.subject_id)))];
-    if (!availableIds.length) throw new Error("No subjects are currently available for your class.");
-    const { data: availableSubjects, error: namesError } = await sb.from("subjects").select("id,name").in("id", availableIds).order("name");
-    if (namesError) throw namesError;
 
     const selectedIds = new Set((selectedResult.data || []).map(x => Number(x.subject_id)));
     panel.dataset.classId = String(classRow.id);
@@ -1559,8 +1555,24 @@ async function renderSeniorSubjectManager() {
       : latestRequest?.status === "declined"
         ? `<div class="card" role="status"><strong>ℹ️ Your parent declined your previous subject-change request.</strong><p class="muted">Responded ${formatDate(latestRequest.responded_at)}. Your existing subjects have not been changed.</p>${latestRequest.parent_note ? `<p class="muted">Parent's note: ${escapeHtml(latestRequest.parent_note)}</p>` : ""}</div>`
         : "";
+    const hasDecision = latestRequest?.status === "approved" || latestRequest?.status === "declined";
+    const editMode = panel.dataset.editMode === "true";
+    const noticeBox = $("subjectManagementNotice");
+    if (noticeBox) noticeBox.innerHTML = decisionNotice;
+    if (hasDecision && !editMode) {
+      $("managedSubjectChoices").innerHTML = "";
+      if (changeForm) changeForm.classList.add("hidden");
+      panel.dataset.currentSubjectIds = JSON.stringify([...selectedIds]);
+      message.textContent = "Your parent has responded. Your subject choices are closed; select Manage My Subjects when you are ready to make another request.";
+      saveButton.disabled = true;
+      return;
+    }
+    const availableIds = [...new Set((mappedResult.data || []).map(x => Number(x.subject_id)))];
+    if (!availableIds.length) throw new Error("No subjects are currently available for your class.");
+    const { data: availableSubjects, error: namesError } = await sb.from("subjects").select("id,name").in("id", availableIds).order("name");
+    if (namesError) throw namesError;
     if (changeForm) changeForm.classList.remove("hidden");
-    $("managedSubjectChoices").innerHTML = decisionNotice + (availableSubjects || []).map(subject => `
+    $("managedSubjectChoices").innerHTML = (availableSubjects || []).map(subject => `
       <label class="managed-subject-card">
         <input type="checkbox" class="managed-subject-checkbox" value="${Number(subject.id)}" ${selectedIds.has(Number(subject.id)) ? "checked" : ""}>
         <span>${escapeHtml(subject.name)}</span>
@@ -1614,6 +1626,7 @@ async function saveManagedSeniorSubjects() {
     if (error) throw error;
     if (data?.success === false) throw new Error(data.message || "Your request could not be submitted.");
     message.textContent = `Request #${data?.request_id || "submitted"} sent successfully. Your current subjects will remain unchanged until your parent approves.`;
+    panel.dataset.editMode = "false";
     await renderSeniorSubjectManager();
   } catch (error) {
     message.textContent = error.message || "Could not submit your subject-change request.";
@@ -1918,14 +1931,27 @@ if (openProgressBtn) {
     manageSubjectsBtn.onclick = async () => {
       const panel = $("subjectManagementPanel");
       if (!panel) return;
-      if (panel.classList.contains("hidden")) await renderSeniorSubjectManager();
-      else panel.classList.add("hidden");
+      if (panel.classList.contains("hidden")) {
+        panel.dataset.editMode = "true";
+        await renderSeniorSubjectManager();
+      } else if (panel.dataset.editMode !== "true") {
+        panel.dataset.editMode = "true";
+        await renderSeniorSubjectManager();
+      } else {
+        panel.classList.add("hidden");
+        panel.dataset.editMode = "false";
+      }
     };
   }
   const saveManagedSubjectsBtn = $("saveManagedSubjects");
   if (saveManagedSubjectsBtn) saveManagedSubjectsBtn.onclick = saveManagedSeniorSubjects;
   const cancelManagedSubjectsBtn = $("cancelManagedSubjects");
-  if (cancelManagedSubjectsBtn) cancelManagedSubjectsBtn.onclick = () => $("subjectManagementPanel")?.classList.add("hidden");
+  if (cancelManagedSubjectsBtn) cancelManagedSubjectsBtn.onclick = () => {
+    const panel = $("subjectManagementPanel");
+    if (!panel) return;
+    panel.classList.add("hidden");
+    panel.dataset.editMode = "false";
+  };
   const progressBtn = $("progress");
   if (progressBtn) progressBtn.onclick = showStudentProgress;
   document
