@@ -30,6 +30,7 @@ function show(id) {
     "quiz",
     "lessonView",
     "tutorView",
+    "seniorRegistration",
   ].forEach((x) => $(x).classList.add("hidden"));
 
   $(id).classList.remove("hidden");
@@ -38,7 +39,7 @@ function show(id) {
 
 function getVisibleAppView() {
   return [
-    "auth", "setup", "subjectSelect", "curriculumView", "dash",
+    "auth", "setup", "seniorRegistration", "subjectSelect", "curriculumView", "dash",
     "parentDash", "quiz", "lessonView", "tutorView"
   ].find((id) => $(id) && !$(id).classList.contains("hidden")) || "dash";
 }
@@ -255,6 +256,94 @@ $("authBtn").onclick = async () => {
   }
 };
 
+// Senior-secondary registration is deliberately separate from the existing
+// practice-subject selector. JSS students continue through the original flow.
+function isSeniorClass(level = profile?.level) {
+  return ["SS1", "SS2", "SS3"].includes(normalizeLevel(level));
+}
+
+async function getRegistrationClass() {
+  const found = await findClass();
+  if (!found || !isSeniorClass()) return null;
+  return found;
+}
+
+async function ensureSeniorRegistration() {
+  if (!isSeniorClass()) return false;
+  const cls = await getRegistrationClass();
+  if (!cls) throw new Error("We could not identify your senior-secondary class.");
+  const { data: started, error: startError } = await sb.rpc("start_student_registration", {
+    p_class_id: cls.id,
+  });
+  if (startError) throw startError;
+  if (started?.success === false) throw new Error("Could not start registration.");
+  const { data: status, error: statusError } = await sb
+    .from("student_registration_status")
+    .select("status")
+    .eq("student_id", user.id)
+    .eq("class_id", cls.id)
+    .maybeSingle();
+  if (statusError) throw statusError;
+  if (status?.status === "completed") return false;
+  await renderSeniorRegistration(cls);
+  return true;
+}
+
+async function renderSeniorRegistration(cls) {
+  show("seniorRegistration");
+  $("registrationHeading").textContent = `Complete your ${cls.name} registration`;
+  $("registrationIntro").textContent = `Choose a department and the subjects you want to study in ${cls.name}. You can select subjects across departments.`;
+  $("registrationMessage").textContent = "Loading your registration...";
+  const [departmentsResult, subjectsResult, selectedDeptResult, selectedSubjectsResult] = await Promise.all([
+    sb.from("departments").select("id,name").order("name"),
+    sb.from("curriculum_subjects").select("subject_id, subjects(id,name)").eq("class_id", cls.id),
+    sb.from("student_departments").select("department_id").eq("student_id", user.id).eq("class_id", cls.id).eq("is_active", true).maybeSingle(),
+    sb.from("student_subjects").select("subject_id").eq("student_id", user.id).eq("class_id", cls.id).eq("is_active", true),
+  ]);
+  for (const result of [departmentsResult, subjectsResult, selectedDeptResult, selectedSubjectsResult]) {
+    if (result.error) throw result.error;
+  }
+  const departments = departmentsResult.data || [];
+  const subjects = [];
+  for (const row of subjectsResult.data || []) {
+    const subject = row.subjects;
+    if (subject && !subjects.some(s => Number(s.id) === Number(subject.id))) subjects.push(subject);
+  }
+  const selectedIds = new Set((selectedSubjectsResult.data || []).map(x => Number(x.subject_id)));
+  const deptSelect = $("registrationDepartment");
+  deptSelect.innerHTML = '<option value="">Choose a department</option>' + departments.map(d => `<option value="${Number(d.id)}">${escapeHtml(d.name)}</option>`).join("");
+  if (selectedDeptResult.data?.department_id) deptSelect.value = String(selectedDeptResult.data.department_id);
+  $("registrationSubjects").innerHTML = subjects.length ? subjects.map(s => `
+    <label class="card" style="display:flex;gap:10px;align-items:center;cursor:pointer;padding:12px;margin:0">
+      <input type="checkbox" class="registration-subject" value="${Number(s.id)}" ${selectedIds.has(Number(s.id)) ? "checked" : ""}>
+      <span>${escapeHtml(s.name)}</span>
+    </label>`).join("") : '<p class="muted">No subjects are currently mapped to this class.</p>';
+  $("registrationMessage").textContent = "Select your department and at least one subject. Your choices are saved to your student record.";
+  $("saveSeniorRegistration").disabled = false;
+  $("saveSeniorRegistration").onclick = async () => {
+    const departmentId = Number(deptSelect.value);
+    const subjectIds = [...document.querySelectorAll(".registration-subject:checked")].map(x => Number(x.value));
+    if (!departmentId) { $("registrationMessage").textContent = "Please choose a department."; return; }
+    if (!subjectIds.length) { $("registrationMessage").textContent = "Please select at least one subject."; return; }
+    const button = $("saveSeniorRegistration");
+    button.disabled = true;
+    $("registrationMessage").textContent = "Saving your registration...";
+    try {
+      let result = await sb.rpc("set_student_department", { p_class_id: cls.id, p_department_id: departmentId });
+      if (result.error) throw result.error;
+      result = await sb.rpc("save_student_subjects", { p_class_id: cls.id, p_subject_ids: subjectIds });
+      if (result.error) throw result.error;
+      result = await sb.rpc("complete_student_registration", { p_class_id: cls.id });
+      if (result.error) throw result.error;
+      $("registrationMessage").textContent = "Registration completed! Taking you to your dashboard...";
+      await renderDash();
+    } catch (error) {
+      $("registrationMessage").textContent = error.message || "We could not save your registration.";
+      button.disabled = false;
+    }
+  };
+}
+
 async function load() {
   suppressSessionSave = true;
   try {
@@ -282,14 +371,18 @@ async function load() {
       return;
     }
     profile = p;
+    let registrationRequired = false;
     if (profile.role === "parent") {
       await renderParentDash();
     } else {
-      await renderDash();
-      await resumeTimRequest();
+      registrationRequired = await ensureSeniorRegistration();
+      if (!registrationRequired) {
+        await renderDash();
+        await resumeTimRequest();
+      }
     }
     suppressSessionSave = false;
-    await restoreActiveSession();
+    if (!registrationRequired) await restoreActiveSession();
   } catch (e) {
     suppressSessionSave = false;
     const msg = e.message || "Could not load your account.";
@@ -343,8 +436,11 @@ profile = savedProfile || p;
 if (role === "parent") {
   await renderParentDash();
 } else {
-  await renderDash();
-  await resumeTimRequest();
+  const registrationRequired = await ensureSeniorRegistration();
+  if (!registrationRequired) {
+    await renderDash();
+    await resumeTimRequest();
+  }
 }
   } catch (e) {
     setupMessage("❌ " + (e.message || "Could not save profile."));
