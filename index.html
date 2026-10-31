@@ -62,6 +62,23 @@
 </section>
 <section id="setup" class="hidden"><div class="section"><span id="setupPill" class="pill">Student profile</span><h2 id="setupTitle">Tell us about your learning</h2></div><div class="card"><label>Full name<input id="setupName" placeholder="Your full name"></label><div id="studentSetupFields"><label>Country<select id="country"><option>Nigeria</option><option>Ghana</option><option>Sierra Leone</option><option>The Gambia</option><option>Liberia</option></select></label><label>Level<select id="level"><option>JSS 1</option><option>JSS 2</option><option>JSS 3</option><option>SS 1</option><option>SS 2</option><option>SS 3</option></select></label><label>Learning language<select id="language"><option>English</option><option>Yorùbá</option><option>Igbo</option><option>Hausa</option><option>Nigerian Pidgin</option></select></label></div><button id="saveProfile" class="primary" type="button">Continue</button><p id="setupMsg" class="auth-msg"></p></div></section>
 
+<section id="seniorRegistration" class="hidden">
+  <div class="section">
+    <span class="pill">Senior Secondary Registration</span>
+    <h2 id="registrationHeading">Complete your registration</h2>
+    <p id="registrationIntro" class="muted">Choose your department and subjects.</p>
+  </div>
+  <div class="card">
+    <label for="registrationDepartment">Department
+      <select id="registrationDepartment"><option value="">Loading departments...</option></select>
+    </label>
+    <p class="muted">Your department is a guide. You may choose subjects across departments.</p>
+    <h3>Choose your subjects</h3>
+    <div id="registrationSubjects" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px"></div>
+    <button id="saveSeniorRegistration" class="primary" type="button" disabled>Save and complete registration</button>
+    <p id="registrationMessage" class="auth-msg" role="status" aria-live="polite"></p>
+  </div>
+</section>
 
 <section id="subjectSelect" class="hidden">
 
