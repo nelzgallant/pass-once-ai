@@ -1482,26 +1482,29 @@ async function renderSeniorSubjectManager() {
   const panel = $("subjectManagementPanel");
   const message = $("subjectManagementMessage");
   const saveButton = $("saveManagedSubjects");
+  const changeForm = $("subjectChangeForm");
   if (!panel || !classRow || !isSeniorClass(profile?.level)) return;
 
   panel.classList.remove("hidden");
-  message.textContent = "Checking your current subjects and pending requests…";
+  message.textContent = "Checking your current subjects and recent requests…";
   saveButton.disabled = true;
+  if (changeForm) changeForm.classList.remove("hidden");
 
   try {
     const [mappedResult, selectedResult, pendingResult] = await Promise.all([
       sb.from("curriculum_subjects").select("subject_id").eq("class_id", classRow.id),
       sb.from("student_subjects").select("subject_id").eq("student_id", user.id).eq("class_id", classRow.id).eq("is_active", true),
-      sb.from("student_subject_change_requests").select("id,status,requested_at").eq("student_id", user.id).eq("class_id", classRow.id).eq("status", "pending").order("requested_at", { ascending: false }).limit(1)
+      sb.from("student_subject_change_requests").select("id,status,requested_at,responded_at,parent_note").eq("student_id", user.id).eq("class_id", classRow.id).order("requested_at", { ascending: false }).limit(1)
     ]);
     if (mappedResult.error) throw mappedResult.error;
     if (selectedResult.error) throw selectedResult.error;
     if (pendingResult.error) throw pendingResult.error;
 
-    const pending = pendingResult.data?.[0];
-    if (pending) {
-      $("managedSubjectChoices").innerHTML = `<div class="card"><strong>⏳ Your subject-change request is awaiting parent approval.</strong><p class="muted">Submitted${formatDate(pending.requested_at)}. You cannot submit another request until your parent responds.</p></div>`;
-      message.textContent = `Pending request #${pending.id}. Your current subjects remain unchanged until approval.`;
+    const latestRequest = pendingResult.data?.[0] || null;
+    if (latestRequest?.status === "pending") {
+      $("managedSubjectChoices").innerHTML = `<div class="card"><strong>⏳ Your subject-change request is awaiting parent approval.</strong><p class="muted">Submitted ${formatDate(latestRequest.requested_at)}. You cannot submit another request until your parent responds.</p><p class="muted">Your current subjects remain unchanged while the request is pending.</p></div>`;
+      if (changeForm) changeForm.classList.add("hidden");
+      message.textContent = `Pending request #${latestRequest.id}. The request form is paused until your parent responds.`;
       saveButton.disabled = true;
       return;
     }
@@ -1513,7 +1516,13 @@ async function renderSeniorSubjectManager() {
 
     const selectedIds = new Set((selectedResult.data || []).map(x => Number(x.subject_id)));
     panel.dataset.classId = String(classRow.id);
-    $("managedSubjectChoices").innerHTML = (availableSubjects || []).map(subject => `
+    const decisionNotice = latestRequest?.status === "approved"
+      ? `<div class="card" role="status"><strong>✅ Your parent approved your previous subject-change request.</strong><p class="muted">Responded ${formatDate(latestRequest.responded_at)}. Your active subject list is up to date.</p>${latestRequest.parent_note ? `<p class="muted">Parent's note: ${escapeHtml(latestRequest.parent_note)}</p>` : ""}</div>`
+      : latestRequest?.status === "declined"
+        ? `<div class="card" role="status"><strong>ℹ️ Your parent declined your previous subject-change request.</strong><p class="muted">Responded ${formatDate(latestRequest.responded_at)}. Your existing subjects have not been changed.</p>${latestRequest.parent_note ? `<p class="muted">Parent's note: ${escapeHtml(latestRequest.parent_note)}</p>` : ""}</div>`
+        : "";
+    if (changeForm) changeForm.classList.remove("hidden");
+    $("managedSubjectChoices").innerHTML = decisionNotice + (availableSubjects || []).map(subject => `
       <label class="managed-subject-card">
         <input type="checkbox" class="managed-subject-checkbox" value="${Number(subject.id)}" ${selectedIds.has(Number(subject.id)) ? "checked" : ""}>
         <span>${escapeHtml(subject.name)}</span>
