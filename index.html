@@ -5,6 +5,64 @@
 <meta name="theme-color" content="#0b57d0"><meta name="description" content="Pass Once AI — Learn, Practice, Pass.">
 <title>Pass Once AI</title>
 <link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css">
+<style>
+/* Senior-secondary subject registration cards */
+#registrationSubjects {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));
+  gap:12px;
+  margin:14px 0 20px;
+}
+#registrationSubjects .registration-subject-card {
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-height:68px;
+  padding:15px 16px;
+  margin:0;
+  border:1px solid #d9e3f2;
+  border-radius:15px;
+  background:linear-gradient(145deg,#ffffff,#f7faff);
+  box-shadow:0 4px 14px rgba(24,62,112,.06);
+  cursor:pointer;
+  transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease,background .18s ease;
+}
+#registrationSubjects .registration-subject-card:hover {
+  border-color:#6b9be8;
+  box-shadow:0 8px 20px rgba(24,85,170,.12);
+  transform:translateY(-2px);
+}
+#registrationSubjects .registration-subject-card:has(input:checked) {
+  border:2px solid #2563eb;
+  padding:14px 15px;
+  background:linear-gradient(145deg,#eff6ff,#f8fbff);
+  box-shadow:0 5px 16px rgba(37,99,235,.13);
+}
+#registrationSubjects .registration-subject-card input {
+  width:19px;
+  height:19px;
+  flex:0 0 19px;
+  accent-color:#2563eb;
+}
+#registrationSubjects .registration-subject-card span {
+  color:#183153;
+  font-weight:600;
+  line-height:1.35;
+}
+#seniorRegistration .registration-panel {
+  padding:clamp(16px,3vw,26px);
+  border:1px solid #dce6f4;
+  border-radius:20px;
+  background:#fff;
+  box-shadow:0 12px 32px rgba(24,62,112,.07);
+}
+@media (max-width:560px) {
+  #registrationSubjects {grid-template-columns:1fr;gap:9px}
+  #registrationSubjects .registration-subject-card {min-height:60px;padding:13px}
+}
+</style>
+
 </head>
 <body>
 <header><div class="brand"><span class="logo">P</span><span>Pass Once <b>AI</b></span></div><button id="logout" class="ghost hidden" type="button">Log out</button></header>
@@ -68,7 +126,7 @@
     <h2 id="registrationHeading">Complete your registration</h2>
     <p id="registrationIntro" class="muted">Choose your department and subjects.</p>
   </div>
-  <div class="card">
+  <div class="card registration-panel">
     <label for="registrationDepartment">Department
       <select id="registrationDepartment"><option value="">Loading departments...</option></select>
     </label>
