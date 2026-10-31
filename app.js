@@ -1478,6 +1478,175 @@ async function renderLearningHistory(studentId, currentClassId, target, isParent
   }
 }
 
+async function renderSeniorSubjectManager() {
+  const panel = $("subjectManagementPanel");
+  const message = $("subjectManagementMessage");
+  const saveButton = $("saveManagedSubjects");
+  if (!panel || !classRow || !isSeniorClass(profile?.level)) return;
+
+  panel.classList.remove("hidden");
+  message.textContent = "Checking your current subjects and pending requests…";
+  saveButton.disabled = true;
+
+  try {
+    const [mappedResult, selectedResult, pendingResult] = await Promise.all([
+      sb.from("curriculum_subjects").select("subject_id").eq("class_id", classRow.id),
+      sb.from("student_subjects").select("subject_id").eq("student_id", user.id).eq("class_id", classRow.id).eq("is_active", true),
+      sb.from("student_subject_change_requests").select("id,status,requested_at").eq("student_id", user.id).eq("class_id", classRow.id).eq("status", "pending").order("requested_at", { ascending: false }).limit(1)
+    ]);
+    if (mappedResult.error) throw mappedResult.error;
+    if (selectedResult.error) throw selectedResult.error;
+    if (pendingResult.error) throw pendingResult.error;
+
+    const pending = pendingResult.data?.[0];
+    if (pending) {
+      $("managedSubjectChoices").innerHTML = `<div class="card"><strong>⏳ Your subject-change request is awaiting parent approval.</strong><p class="muted">Submitted${formatDate(pending.requested_at)}. You cannot submit another request until your parent responds.</p></div>`;
+      message.textContent = `Pending request #${pending.id}. Your current subjects remain unchanged until approval.`;
+      saveButton.disabled = true;
+      return;
+    }
+
+    const availableIds = [...new Set((mappedResult.data || []).map(x => Number(x.subject_id)))];
+    if (!availableIds.length) throw new Error("No subjects are currently available for your class.");
+    const { data: availableSubjects, error: namesError } = await sb.from("subjects").select("id,name").in("id", availableIds).order("name");
+    if (namesError) throw namesError;
+
+    const selectedIds = new Set((selectedResult.data || []).map(x => Number(x.subject_id)));
+    panel.dataset.classId = String(classRow.id);
+    $("managedSubjectChoices").innerHTML = (availableSubjects || []).map(subject => `
+      <label class="managed-subject-card">
+        <input type="checkbox" class="managed-subject-checkbox" value="${Number(subject.id)}" ${selectedIds.has(Number(subject.id)) ? "checked" : ""}>
+        <span>${escapeHtml(subject.name)}</span>
+        ${selectedIds.has(Number(subject.id)) ? '<small class="managed-subject-current">Currently enrolled</small>' : '<small class="managed-subject-add">Available to request</small>'}
+      </label>
+    `).join("");
+    panel.dataset.currentSubjectIds = JSON.stringify([...selectedIds]);
+    if ($("subjectChangeReason")) $("subjectChangeReason").value = "";
+    message.textContent = "Select subjects to add or drop. Your parent must approve the request before anything changes.";
+    saveButton.disabled = false;
+  } catch (error) {
+    message.textContent = error.message || "Could not load your subjects.";
+    saveButton.disabled = true;
+  }
+}
+
+async function saveManagedSeniorSubjects() {
+  const panel = $("subjectManagementPanel");
+  const message = $("subjectManagementMessage");
+  const button = $("saveManagedSubjects");
+  const classId = Number(panel?.dataset.classId || classRow?.id);
+  const currentIds = new Set(JSON.parse(panel?.dataset.currentSubjectIds || "[]").map(Number));
+  const chosenIds = new Set([...document.querySelectorAll(".managed-subject-checkbox:checked")].map(input => Number(input.value)));
+  const addIds = [...chosenIds].filter(id => !currentIds.has(id));
+  const dropIds = [...currentIds].filter(id => !chosenIds.has(id));
+  const reason = $("subjectChangeReason")?.value.trim() || "";
+
+  if (!addIds.length && !dropIds.length) {
+    message.textContent = "You have not made any changes to your subject selection.";
+    return;
+  }
+  if (chosenIds.size < 1) {
+    message.textContent = "At least one subject must remain selected.";
+    return;
+  }
+  if (reason.length < 3) {
+    message.textContent = "Please explain why you want to change your subjects (at least 3 characters).";
+    $("subjectChangeReason")?.focus();
+    return;
+  }
+
+  button.disabled = true;
+  message.textContent = "Submitting your request for parent approval…";
+  try {
+    const { data, error } = await sb.rpc("request_student_subject_changes", {
+      p_class_id: classId,
+      p_add_subject_ids: addIds,
+      p_drop_subject_ids: dropIds,
+      p_reason: reason
+    });
+    if (error) throw error;
+    if (data?.success === false) throw new Error(data.message || "Your request could not be submitted.");
+    message.textContent = `Request #${data?.request_id || "submitted"} sent successfully. Your current subjects will remain unchanged until your parent approves.`;
+    await renderSeniorSubjectManager();
+  } catch (error) {
+    message.textContent = error.message || "Could not submit your subject-change request.";
+    button.disabled = false;
+  }
+}
+
+async function renderParentSubjectChangeRequests(childIds, children) {
+  const container = $("subjectChangeRequests");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!childIds?.length) return;
+  try {
+    const { data: requests, error } = await sb.from("student_subject_change_requests")
+      .select("id,student_id,class_id,requested_add_subject_ids,requested_drop_subject_ids,reason,requested_at")
+      .in("student_id", childIds).eq("status", "pending").order("requested_at", { ascending: true });
+    if (error) throw error;
+    const childById = new Map((children || []).map(child => [child.id, child]));
+    if (!requests?.length) {
+      container.innerHTML = `<div class="card"><h3>📚 Subject-change requests</h3><p class="muted">There are no pending subject-change requests from your linked children.</p></div>`;
+      return;
+    }
+    const ids = [...new Set(requests.flatMap(r => [...(r.requested_add_subject_ids || []), ...(r.requested_drop_subject_ids || [])].map(Number)))];
+    const classIds = [...new Set(requests.map(r => Number(r.class_id)))];
+    const [{ data: subjects, error: subjectError }, { data: classes, error: classError }] = await Promise.all([
+      sb.from("subjects").select("id,name").in("id", ids),
+      sb.from("classes").select("id,name").in("id", classIds)
+    ]);
+    if (subjectError) throw subjectError;
+    if (classError) throw classError;
+    const subjectNames = new Map((subjects || []).map(x => [Number(x.id), x.name]));
+    const classNames = new Map((classes || []).map(x => [Number(x.id), x.name]));
+    container.innerHTML = `<h3>📚 Subject-change requests</h3>` + requests.map(r => {
+      const child = childById.get(r.student_id);
+      const additions = (r.requested_add_subject_ids || []).map(id => subjectNames.get(Number(id)) || `Subject ${id}`);
+      const drops = (r.requested_drop_subject_ids || []).map(id => subjectNames.get(Number(id)) || `Subject ${id}`);
+      return `<article class="card subject-change-request-card" style="margin-bottom:12px">
+        <h4>${escapeHtml(child?.full_name || "Your child")} — ${escapeHtml(classNames.get(Number(r.class_id)) || "Senior class")}</h4>
+        <p class="muted">Submitted${formatDate(r.requested_at)}</p>
+        ${additions.length ? `<p><strong>Subjects to add:</strong> ${additions.map(escapeHtml).join(", ")}</p>` : ""}
+        ${drops.length ? `<p><strong>Subjects to drop:</strong> ${drops.map(escapeHtml).join(", ")}</p>` : ""}
+        <p><strong>Student's reason:</strong> ${escapeHtml(r.reason)}</p>
+        <label for="subjectParentNote-${Number(r.id)}">Parent note (optional)</label>
+        <textarea id="subjectParentNote-${Number(r.id)}" maxlength="500" rows="2" placeholder="Add a note for your child"></textarea>
+        <div class="subject-request-actions"><button class="primary subject-change-approve" data-request-id="${Number(r.id)}" type="button">Approve changes</button><button class="ghost subject-change-decline" data-request-id="${Number(r.id)}" type="button">Decline</button></div>
+        <p class="auth-msg" id="subjectChangeMsg-${Number(r.id)}" role="status" aria-live="polite"></p>
+      </article>`;
+    }).join("");
+
+    container.querySelectorAll(".subject-change-approve,.subject-change-decline").forEach(button => {
+      button.onclick = async () => {
+        const requestId = Number(button.dataset.requestId);
+        const approve = button.classList.contains("subject-change-approve");
+        const note = $(`subjectParentNote-${requestId}`)?.value.trim() || null;
+        const msg = $(`subjectChangeMsg-${requestId}`);
+        if (!confirm(approve ? "Approve these subject changes? The student's active subjects will update, but previous learning records will be preserved." : "Decline this subject-change request? The student's current subjects will remain unchanged.")) return;
+        button.disabled = true;
+        msg.textContent = approve ? "Approving subject changes…" : "Declining request…";
+        try {
+          const { data, error } = await sb.rpc("respond_student_subject_change", {
+            p_request_id: requestId,
+            p_approve: approve,
+            p_parent_note: note
+          });
+          if (error) throw error;
+          if (data?.success === false) throw new Error(data.message || "Could not process this request.");
+          msg.textContent = approve ? "Approved. The student's active subject list is now updated." : "Request declined. The student's subjects were not changed.";
+          await renderParentDash();
+        } catch (error) {
+          msg.textContent = error.message || "Could not process this request.";
+          button.disabled = false;
+        }
+      };
+    });
+  } catch (error) {
+    console.error("Parent subject-change requests error:", error);
+    container.innerHTML = `<div class="card"><h3>📚 Subject-change requests</h3><p class="auth-msg">Could not load requests: ${escapeHtml(error.message || "Please refresh and try again.")}</p></div>`;
+  }
+}
+
 async function renderDash(openPractice = true) {
   $("welcome").textContent = `Welcome, ${profile.full_name} 👋🏾`;
   $(
@@ -1696,6 +1865,20 @@ if (openProgressBtn) {
 }
   const curriculumBtn = $("openCurriculum");
   if (curriculumBtn) curriculumBtn.onclick = openCurriculum;
+  const manageSubjectsBtn = $("manageSubjectsBtn");
+  if (manageSubjectsBtn) {
+    manageSubjectsBtn.classList.toggle("hidden", !isSeniorClass(profile?.level));
+    manageSubjectsBtn.onclick = async () => {
+      const panel = $("subjectManagementPanel");
+      if (!panel) return;
+      if (panel.classList.contains("hidden")) await renderSeniorSubjectManager();
+      else panel.classList.add("hidden");
+    };
+  }
+  const saveManagedSubjectsBtn = $("saveManagedSubjects");
+  if (saveManagedSubjectsBtn) saveManagedSubjectsBtn.onclick = saveManagedSeniorSubjects;
+  const cancelManagedSubjectsBtn = $("cancelManagedSubjects");
+  if (cancelManagedSubjectsBtn) cancelManagedSubjectsBtn.onclick = () => $("subjectManagementPanel")?.classList.add("hidden");
   const progressBtn = $("progress");
   if (progressBtn) progressBtn.onclick = showStudentProgress;
   document
@@ -2215,6 +2398,7 @@ async function renderParentDash() {
   $("children").innerHTML =
     cards.join("") || `<div class="card">No linked children found.</div>`;
   await renderParentPromotionRequests(childIds, children || [], availableClasses || []);
+  await renderParentSubjectChangeRequests(childIds, children || []);
 }
 
 function formatDate(value) {
