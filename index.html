@@ -61,6 +61,23 @@
   #registrationSubjects {grid-template-columns:1fr;gap:9px}
   #registrationSubjects .registration-subject-card {min-height:60px;padding:13px}
 }
+
+/* Senior student add/drop subject manager */
+.subjects-heading-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:8px 0 12px; }
+#subjectManagementPanel { margin:12px 0 18px; padding:clamp(15px,2.5vw,22px); border:1px solid #dbe6f5; border-radius:18px; background:linear-gradient(145deg,#fff,#f7faff); box-shadow:0 8px 24px rgba(24,62,112,.07); }
+#managedSubjectChoices { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr)); gap:10px; margin:14px 0; }
+.managed-subject-card { display:grid; grid-template-columns:20px 1fr; grid-template-rows:auto auto; align-items:center; gap:3px 10px; padding:13px 14px; margin:0; border:1px solid #dbe4f0; border-radius:14px; background:#fff; cursor:pointer; transition:.18s ease; }
+.managed-subject-card:hover { border-color:#7aa5e8; box-shadow:0 5px 15px rgba(37,99,235,.09); transform:translateY(-1px); }
+.managed-subject-card:has(input:checked) { border:2px solid #2563eb; padding:12px 13px; background:#eff6ff; }
+.managed-subject-card input { grid-row:1 / span 2; width:18px; height:18px; accent-color:#2563eb; }
+.managed-subject-card span { font-weight:650; color:#183153; }
+.managed-subject-card small { color:#64748b; font-size:.78rem; }
+.managed-subject-current { color:#1d4ed8 !important; }
+@media(max-width:560px) { #managedSubjectChoices { grid-template-columns:1fr; } }
+#subjectChangeReason { width:100%; box-sizing:border-box; margin:8px 0 12px; border:1px solid #d6e1ef; border-radius:12px; padding:12px; font:inherit; }
+.subject-request-actions { display:flex; gap:9px; flex-wrap:wrap; margin-top:12px; }
+.subject-change-request-card { border:1px solid #dce6f4; border-radius:16px; }
+
 </style>
 
 </head>
@@ -206,9 +223,20 @@
 <div class="card" style="margin:14px 0"><h3 style="margin-top:0">📚 First Term • Second Term • Third Term</h3><p class="muted">Follow your class, term and weekly topics.</p><button id="openCurriculum" class="primary" type="button">Open Lessons</button></div><div class="card parent-link-card"><h3>👨‍👩‍👧 Parent Connection</h3><p class="muted">Generate a secure code for your parent to connect to your account.</p><button id="generateParentCode" class="primary" type="button">Generate Parent Code</button><div id="parentCodeResult" class="auth-msg"></div></div>
 <div id="studentPromotionCard" class="card hidden" style="margin:14px 0"><h3 style="margin-top:0">🎓 Class Promotion</h3><p id="studentPromotionText" class="muted">Your class promotion status will appear here.</p><button id="requestPromotionBtn" class="primary hidden" type="button">Request Class Promotion</button><p id="studentPromotionMsg" class="auth-msg" role="status" aria-live="polite"></p></div>
 <div id="studentLearningHistory" style="margin:14px 0"></div>
-<h3>Subjects</h3><div id="subjects" class="grid"></div><div class="grid features"><button class="card feature" id="tutor" type="button">🤖 <b>AI Tutor</b></button><button class="card feature" id="progress" type="button">📈 <b>My Progress</b></button></div></section>
+<div class="subjects-heading-row"><h3 style="margin:0">Subjects</h3><button id="manageSubjectsBtn" class="ghost hidden" type="button">＋ Add / Drop Subjects</button></div>
+<div id="subjectManagementPanel" class="card hidden" aria-live="polite">
+  <h3 style="margin-top:0">Manage My Subjects</h3>
+  <p class="muted">Add a subject by ticking it, or drop a subject by unticking it. Your previous learning records will be preserved.</p>
+  <div id="managedSubjectChoices"></div>
+  <label for="subjectChangeReason">Why would you like to change your subjects?</label>
+  <textarea id="subjectChangeReason" maxlength="500" rows="3" placeholder="Explain why you want to add or drop these subjects"></textarea>
+  <button id="saveManagedSubjects" class="primary" type="button" disabled>Save Subject Changes</button>
+  <button id="cancelManagedSubjects" class="ghost" type="button">Cancel</button>
+  <p id="subjectManagementMessage" class="auth-msg" role="status" aria-live="polite"></p>
+</div>
+<div id="subjects" class="grid"></div><div class="grid features"><button class="card feature" id="tutor" type="button">🤖 <b>AI Tutor</b></button><button class="card feature" id="progress" type="button">📈 <b>My Progress</b></button></div></section>
 <section id="curriculumView" class="hidden"><button class="back" id="backCurriculumDash" type="button">← Dashboard</button><div class="section"><span class="pill">📚 Curriculum</span><h2>Learn by Term and Week</h2><p class="muted">Follow the curriculum for your class, one week at a time.</p></div><div id="curriculumContent"><div class="card"><p>Loading curriculum…</p></div></div></section>
-<section id="parentDash" class="hidden"><div class="section"><span class="pill">Parent Portal</span><h2 id="parentWelcome"></h2><p class="muted">Follow your child's learning journey, practice and progress.</p></div><div class="card"><h3>🔗 Connect a child</h3><p class="muted">Ask your child to generate a Parent Code from their Student Dashboard.</p><input id="childCode" maxlength="8" placeholder="Enter 8-character code"><button id="connectChild" class="primary" type="button">Connect Child</button><p id="parentMsg" class="auth-msg"></p></div><h3>My Children</h3><div id="children" class="grid"></div><div id="promotionRequests" style="margin-top:18px"></div><div id="parentDetails" class="hidden"></div></section>
+<section id="parentDash" class="hidden"><div class="section"><span class="pill">Parent Portal</span><h2 id="parentWelcome"></h2><p class="muted">Follow your child's learning journey, practice and progress.</p></div><div class="card"><h3>🔗 Connect a child</h3><p class="muted">Ask your child to generate a Parent Code from their Student Dashboard.</p><input id="childCode" maxlength="8" placeholder="Enter 8-character code"><button id="connectChild" class="primary" type="button">Connect Child</button><p id="parentMsg" class="auth-msg"></p></div><h3>My Children</h3><div id="children" class="grid"></div><div id="promotionRequests" style="margin-top:18px"></div><div id="subjectChangeRequests" style="margin-top:18px"></div><div id="parentDetails" class="hidden"></div></section>
 <section id="quiz" class="hidden"><button class="back" id="back" type="button">← Dashboard</button><div class="quizhead"><b id="subject"></b><span id="count"></span></div><div class="bar"><i id="bar"></i></div><div class="card"><h2 id="question"></h2><div id="options"></div><p id="explain" class="explain hidden"></p><button id="next" class="primary hidden" type="button">Next</button><button id="submitQuiz" class="primary hidden" type="button" style="margin-top:10px">Submit Quiz</button></div></section>
 <section id="lessonView" class="hidden"><button class="back" id="backLesson" type="button">← Back to Topic</button><div class="section"><span class="pill">📖 Learn</span><h2 id="lessonTitle">Lesson</h2><p id="lessonSubject" class="muted"></p></div><div class="card"><div id="lessonContent"></div><div style="margin-top:20px;padding-top:16px;border-top:1px solid #e8eef7"><button id="markLessonComplete" class="primary" type="button">✅ Mark Lesson Complete</button><button id="practiceLesson" class="ghost" type="button" style="margin-left:8px">📝 Practice This Lesson</button><p id="lessonMsg" class="auth-msg"></p></div></div></section>
 <section id="tutorView" class="hidden"><button class="back" id="backTutor" type="button">← Dashboard</button><div class="section"><span class="pill">AI Tutor</span><h2>Ask a question</h2></div><div class="card"><div id="chat" class="chat"></div><form id="chatForm"><input id="ask" placeholder="e.g. Explain fractions simply" required><button class="primary" type="submit">Ask</button></form></div></section>
