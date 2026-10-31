@@ -19,6 +19,41 @@ const APP_INACTIVITY_LIMIT_MS = 2 * 60 * 60 * 1000; // 2 hours
 let suppressSessionSave = false;
 let currentLessonId = null;
 
+// Keep an open subject-management panel in sync when a parent responds
+// from another account/device. Poll only while the student panel is open.
+let subjectRequestStatusTimer = null;
+let subjectRequestStatusCheckRunning = false;
+function startSubjectRequestStatusWatcher() {
+  if (subjectRequestStatusTimer) return;
+  subjectRequestStatusTimer = setInterval(async () => {
+    const panel = $("subjectManagementPanel");
+    if (!panel || panel.classList.contains("hidden") || !user || !classRow || !isSeniorClass(profile?.level)) return;
+    if (subjectRequestStatusCheckRunning) return;
+    subjectRequestStatusCheckRunning = true;
+    try {
+      const { data, error } = await sb.from("student_subject_change_requests")
+        .select("id,status,requested_at,responded_at,parent_note")
+        .eq("student_id", user.id)
+        .eq("class_id", classRow.id)
+        .order("requested_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const latest = data?.[0] || null;
+      const nextId = latest ? String(latest.id) : "";
+      const nextStatus = latest?.status || "none";
+      const previousId = panel.dataset.latestRequestId || "";
+      const previousStatus = panel.dataset.latestRequestStatus || "";
+      if (previousId && (nextId !== previousId || nextStatus !== previousStatus)) {
+        await renderSeniorSubjectManager();
+      }
+    } catch (error) {
+      console.warn("Subject request status refresh failed:", error);
+    } finally {
+      subjectRequestStatusCheckRunning = false;
+    }
+  }, 3000);
+}
+
 function show(id) {
   [
     "auth",
@@ -1501,6 +1536,9 @@ async function renderSeniorSubjectManager() {
     if (pendingResult.error) throw pendingResult.error;
 
     const latestRequest = pendingResult.data?.[0] || null;
+    panel.dataset.latestRequestId = latestRequest ? String(latestRequest.id) : "";
+    panel.dataset.latestRequestStatus = latestRequest?.status || "none";
+    startSubjectRequestStatusWatcher();
     if (latestRequest?.status === "pending") {
       $("managedSubjectChoices").innerHTML = `<div class="card"><strong>⏳ Your subject-change request is awaiting parent approval.</strong><p class="muted">Submitted ${formatDate(latestRequest.requested_at)}. You cannot submit another request until your parent responds.</p><p class="muted">Your current subjects remain unchanged while the request is pending.</p></div>`;
       if (changeForm) changeForm.classList.add("hidden");
