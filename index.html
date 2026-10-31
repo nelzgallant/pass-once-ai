@@ -227,8 +227,9 @@
 <div id="subjectManagementPanel" class="card hidden" aria-live="polite">
   <h3 style="margin-top:0">Manage My Subjects</h3>
   <p class="muted">Add a subject by ticking it, or drop a subject by unticking it. Your previous learning records will be preserved.</p>
+  <div id="subjectManagementNotice" aria-live="polite"></div>
   <div id="managedSubjectChoices"></div>
-  <div id="subjectChangeForm">
+  <div id="subjectChangeForm" class="hidden">
     <label for="subjectChangeReason">Why would you like to change your subjects?</label>
     <textarea id="subjectChangeReason" maxlength="500" rows="3" placeholder="Explain why you want to add or drop these subjects"></textarea>
     <button id="saveManagedSubjects" class="primary" type="button" disabled>Submit Subject Changes for Approval</button>
