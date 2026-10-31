@@ -314,7 +314,7 @@ async function renderSeniorRegistration(cls) {
   deptSelect.innerHTML = '<option value="">Choose a department</option>' + departments.map(d => `<option value="${Number(d.id)}">${escapeHtml(d.name)}</option>`).join("");
   if (selectedDeptResult.data?.department_id) deptSelect.value = String(selectedDeptResult.data.department_id);
   $("registrationSubjects").innerHTML = subjects.length ? subjects.map(s => `
-    <label class="card" style="display:flex;gap:10px;align-items:center;cursor:pointer;padding:12px;margin:0">
+    <label class="registration-subject-card">
       <input type="checkbox" class="registration-subject" value="${Number(s.id)}" ${selectedIds.has(Number(s.id)) ? "checked" : ""}>
       <span>${escapeHtml(s.name)}</span>
     </label>`).join("") : '<p class="muted">No subjects are currently mapped to this class.</p>';
@@ -1503,19 +1503,40 @@ async function renderDash(openPractice = true) {
   $("accuracy").textContent =
     (attempted ? Math.round((correct / attempted) * 100) : 0) + "%";
   let unique = [];
-  if (classRow) {
+  if (isSeniorClass(profile?.level)) {
+    // Senior students see only the subjects they actively registered for.
+    const { data: enrolled, error: enrolledError } = await sb
+      .from("student_subjects")
+      .select("subject_id")
+      .eq("student_id", user.id)
+      .eq("class_id", classRow.id)
+      .eq("is_active", true);
+    if (enrolledError) throw enrolledError;
+    const enrolledIds = [...new Set((enrolled || []).map(x => Number(x.subject_id)))];
+    if (enrolledIds.length) {
+      const { data: enrolledSubjects, error: enrolledSubjectsError } = await sb
+        .from("subjects")
+        .select("id,name")
+        .in("id", enrolledIds)
+        .order("name");
+      if (enrolledSubjectsError) throw enrolledSubjectsError;
+      unique = enrolledSubjects || [];
+    }
+  } else {
+    // Preserve the existing JSS subject experience exactly as before.
     const mapped = await sb
       .from("curriculum_subjects")
       .select("subject_id, subjects(id,name)")
       .eq("class_id", classRow.id);
+    if (mapped.error) throw mapped.error;
     for (const row of mapped.data || []) {
       const s = row.subjects;
       if (s && !unique.some((x) => x.id === s.id)) unique.push(s);
     }
-  }
-  if (!unique.length) {
-    const fallback = await sb.from("subjects").select("id,name").order("id");
-    if (!fallback.error) unique = fallback.data || [];
+    if (!unique.length) {
+      const fallback = await sb.from("subjects").select("id,name").order("id");
+      if (!fallback.error) unique = fallback.data || [];
+    }
   }
   if (!unique.length && normalizeLevel(profile?.level) === "JSS1")
     unique = [
@@ -1708,13 +1729,34 @@ async function openCurriculum() {
   curriculumReturn = null;
 
   try {
-    const { data: subjects, error: subjectsError } = await sb
-  .from("subjects")
-  .select("id,name");
+    let subjects = [];
+    if (isSeniorClass(profile?.level)) {
+      // Senior curriculum browser is limited to this student's active enrolments.
+      const { data: enrolled, error: enrolledError } = await sb
+        .from("student_subjects")
+        .select("subject_id")
+        .eq("student_id", user.id)
+        .eq("class_id", classRow.id)
+        .eq("is_active", true);
+      if (enrolledError) throw enrolledError;
+      const enrolledIds = [...new Set((enrolled || []).map(x => Number(x.subject_id)))];
+      if (enrolledIds.length) {
+        const { data, error } = await sb
+          .from("subjects")
+          .select("id,name")
+          .in("id", enrolledIds);
+        if (error) throw error;
+        subjects = data || [];
+      }
+    } else {
+      const { data, error } = await sb
+        .from("subjects")
+        .select("id,name");
+      if (error) throw error;
+      subjects = data || [];
+    }
 
-if (subjectsError) throw subjectsError;
-
-// Display core subjects in our preferred order.
+// Display core JSS subjects in their existing preferred order.
 const subjectOrder = [
   "mathematics",
   "english studies",
