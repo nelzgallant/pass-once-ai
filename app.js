@@ -331,7 +331,10 @@ async function renderSeniorRegistration(cls) {
   $("registrationMessage").textContent = "Loading your registration...";
   const [departmentsResult, subjectsResult, selectedDeptResult, selectedSubjectsResult] = await Promise.all([
     sb.from("departments").select("id,name").order("name"),
-    sb.from("curriculum_subjects").select("subject_id, subjects(id,name)").eq("class_id", cls.id),
+    sb.from("curriculum_subjects")
+  .select("subject_id, subjects(id,name)")
+  .eq("class_id", cls.id)
+  .eq("is_active", true),
     sb.from("student_departments").select("department_id").eq("student_id", user.id).eq("class_id", cls.id).eq("is_active", true).maybeSingle(),
     sb.from("student_subjects").select("subject_id").eq("student_id", user.id).eq("class_id", cls.id).eq("is_active", true),
   ]);
@@ -1527,7 +1530,10 @@ async function renderSeniorSubjectManager() {
 
   try {
     const [mappedResult, selectedResult, pendingResult] = await Promise.all([
-      sb.from("curriculum_subjects").select("subject_id").eq("class_id", classRow.id),
+      sb.from("curriculum_subjects")
+  .select("subject_id")
+  .eq("class_id", classRow.id)
+  .eq("is_active", true),
       sb.from("student_subjects").select("subject_id").eq("student_id", user.id).eq("class_id", classRow.id).eq("is_active", true),
       sb.from("student_subject_change_requests").select("id,status,requested_at,responded_at,parent_note").eq("student_id", user.id).eq("class_id", classRow.id).order("requested_at", { ascending: false }).limit(1)
     ]);
@@ -1754,17 +1760,14 @@ async function renderDash(openPractice = true) {
   } else {
     // Preserve the existing JSS subject experience exactly as before.
     const mapped = await sb
-      .from("curriculum_subjects")
-      .select("subject_id, subjects(id,name)")
-      .eq("class_id", classRow.id);
+  .from("curriculum_subjects")
+  .select("subject_id, subjects(id,name)")
+  .eq("class_id", classRow.id)
+  .eq("is_active", true);
     if (mapped.error) throw mapped.error;
     for (const row of mapped.data || []) {
       const s = row.subjects;
       if (s && !unique.some((x) => x.id === s.id)) unique.push(s);
-    }
-    if (!unique.length) {
-      const fallback = await sb.from("subjects").select("id,name").order("id");
-      if (!fallback.error) unique = fallback.data || [];
     }
   }
   if (!unique.length && normalizeLevel(profile?.level) === "JSS1")
